@@ -40,6 +40,7 @@
 | 날짜 | 증상 | 원인 | 해결 | 재발 방지 |
 |---|---|---|---|---|
 | _(예시)_ | _빌드 시 edge runtime 오류_ | _Node 전용 API 사용_ | _edge 호환 API로 교체_ | _Cloudflare 배포 대상 모듈은 edge 호환 확인_ |
+| 2026-05-23 | `npm run dev` 시 `Cannot find native binding`(globals.css 컴파일 500) | Tailwind v4가 쓰는 네이티브 패키지(`@tailwindcss/oxide`,`lightningcss`)가 npm 옵셔널 디펜던시 버그(#4828)로 미설치. lockfile은 정상 | `rm -rf node_modules package-lock.json && npm install`(클린 재설치) | 새 환경(Codespace/CI/Cloudflare 빌드)에서 의존성 문제 시 `npm install` 말고 lockfile까지 지우고 재설치 또는 `npm ci` 사용 |
 
 ### 알려진 주의점 (시작 전 메모)
 - **Next.js on Cloudflare**: Node 전용 API 사용 시 edge 런타임에서 실패할 수 있음.
