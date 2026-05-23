@@ -25,12 +25,13 @@
 
 | 목적 | 명령 |
 |---|---|
-| 개발 서버 | _(TBD: `npm run dev`)_ |
-| 빌드 | _(TBD)_ |
-| 린트 | _(TBD)_ |
-| 테스트 | _(TBD)_ |
-| Cloudflare 배포 | _(TBD: `@opennextjs/cloudflare` 빌드 + wrangler)_ |
-| Supabase 마이그레이션 | _(TBD)_ |
+| 개발 서버 | `npm run dev` → http://localhost:3000 |
+| 프로덕션 빌드 | `npm run build` |
+| 린트 | `npm run lint` |
+| Cloudflare 프리뷰 | `npm run preview` (로컬 Workers 에뮬레이션) |
+| Cloudflare 배포 | `npm run deploy` |
+| Supabase 마이그레이션 | `npx supabase db push` (Supabase CLI 설정 후) |
+| Cloudflare 시크릿 등록 | `wrangler secret put <KEY>` |
 
 ## 오류/버그 학습 로그
 
