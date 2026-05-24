@@ -1,87 +1,201 @@
-import { createClient } from "@/lib/supabase/server";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import TransactionFormModal, {
+  Category,
+  TransactionInitial,
+} from "@/components/TransactionFormModal";
 
 type Summary = { income: number; expense: number; balance: number };
 
-async function getMonthSummary(): Promise<Summary | null> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
+type Transaction = {
+  id: string;
+  kind: "income" | "expense";
+  amount: number;
+  date: string; // YYYY-MM-DD (KST)
+  memo: string;
+  categoryName: string;
+};
 
-    const now = new Date();
-    const startOfMonth = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1
-    ).toISOString();
+type Status = "loading" | "unauthorized" | "error" | "ok";
 
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("kind, amount")
-      .gte("occurred_at", startOfMonth);
+const RECENT_COUNT = 6;
 
-    if (error || !data) return null;
+export default function BudgetCard() {
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [status, setStatus] = useState<Status>("loading");
+  const [modal, setModal] = useState<
+    { mode: "create" | "edit"; initial: TransactionInitial } | null
+  >(null);
 
-    const income = data
-      .filter((t) => t.kind === "income")
-      .reduce((s, t) => s + Number(t.amount), 0);
-    const expense = data
-      .filter((t) => t.kind === "expense")
-      .reduce((s, t) => s + Number(t.amount), 0);
+  const load = useCallback(() => {
+    setStatus("loading");
+    return fetch("/api/transactions")
+      .then(async (r) => {
+        if (r.status === 401) return setStatus("unauthorized");
+        if (!r.ok) return setStatus("error");
+        const data = await r.json();
+        setSummary(data.summary ?? null);
+        setTransactions(data.transactions ?? []);
+        setCategories(data.categories ?? []);
+        setStatus("ok");
+      })
+      .catch(() => setStatus("error"));
+  }, []);
 
-    return { income, expense, balance: income - expense };
-  } catch {
-    return null;
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function openCreate() {
+    setModal({
+      mode: "create",
+      initial: {
+        kind: "expense",
+        amount: "",
+        date: todayKey(),
+        categoryName: "",
+        memo: "",
+      },
+    });
   }
-}
+  function openEdit(tx: Transaction) {
+    setModal({
+      mode: "edit",
+      initial: {
+        id: tx.id,
+        kind: tx.kind,
+        amount: String(tx.amount),
+        date: tx.date,
+        categoryName: tx.categoryName,
+        memo: tx.memo,
+      },
+    });
+  }
+  function onSaved() {
+    setModal(null);
+    load();
+  }
 
-function formatKRW(amount: number): string {
-  return amount.toLocaleString("ko-KR") + "원";
-}
-
-export default async function BudgetCard() {
-  const summary = await getMonthSummary();
   const monthLabel = `${new Date().getMonth() + 1}월`;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
-        <span aria-hidden>💰</span> {monthLabel} 가계부
-      </h2>
-
-      {summary ? (
-        <div className="space-y-2">
-          <SummaryRow
-            label="수입"
-            value={formatKRW(summary.income)}
-            className="text-blue-600"
-          />
-          <SummaryRow
-            label="지출"
-            value={formatKRW(summary.expense)}
-            className="text-red-500"
-          />
-          <div className="border-t border-gray-100 pt-2 mt-2">
-            <SummaryRow
-              label="잔액"
-              value={formatKRW(summary.balance)}
-              className={summary.balance >= 0 ? "text-green-600" : "text-red-600"}
-              bold
-            />
-          </div>
+    <>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <span aria-hidden>💰</span> {monthLabel} 가계부
+          </h2>
+          {status === "ok" && (
+            <button
+              onClick={openCreate}
+              className="px-2.5 py-1 text-sky-600 hover:bg-sky-50 rounded-lg text-xs font-medium"
+            >
+              + 거래
+            </button>
+          )}
         </div>
-      ) : (
-        <p className="text-gray-400 text-sm">
-          가계부 데이터를 불러올 수 없습니다.{" "}
-          <a href="/login" className="underline">
-            로그인
-          </a>
-          하거나 Supabase 연동 후 이용하세요.
-        </p>
+
+        {status === "loading" && (
+          <p className="text-gray-400 text-sm">불러오는 중…</p>
+        )}
+
+        {status === "unauthorized" && (
+          <p className="text-amber-600 text-sm">
+            <a href="/login" className="underline font-medium">
+              로그인
+            </a>{" "}
+            후 가계부를 이용하세요.
+          </p>
+        )}
+
+        {status === "error" && (
+          <p className="text-gray-400 text-sm">
+            가계부 데이터를 불러올 수 없습니다. Supabase 테이블(마이그레이션) 적용 여부를
+            확인하세요.
+          </p>
+        )}
+
+        {status === "ok" && summary && (
+          <>
+            <div className="space-y-2">
+              <SummaryRow
+                label="수입"
+                value={formatKRW(summary.income)}
+                className="text-blue-600"
+              />
+              <SummaryRow
+                label="지출"
+                value={formatKRW(summary.expense)}
+                className="text-red-500"
+              />
+              <div className="border-t border-gray-100 pt-2 mt-2">
+                <SummaryRow
+                  label="잔액"
+                  value={formatKRW(summary.balance)}
+                  className={
+                    summary.balance >= 0 ? "text-green-600" : "text-red-600"
+                  }
+                  bold
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <h3 className="text-xs text-gray-400 mb-1">최근 거래</h3>
+              {transactions.length === 0 ? (
+                <p className="text-gray-400 text-sm py-2">
+                  이번 달 거래가 없습니다.
+                </p>
+              ) : (
+                <ul className="divide-y divide-gray-50">
+                  {transactions.slice(0, RECENT_COUNT).map((tx) => (
+                    <li key={tx.id}>
+                      <button
+                        onClick={() => openEdit(tx)}
+                        className="w-full flex items-center gap-2 py-2 text-left hover:bg-gray-50 rounded-lg px-1"
+                      >
+                        <span className="text-xs text-gray-400 w-10 shrink-0">
+                          {shortDate(tx.date)}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                          {tx.categoryName || "미분류"}
+                          {tx.memo && (
+                            <span className="text-gray-400"> · {tx.memo}</span>
+                          )}
+                        </span>
+                        <span
+                          className={`text-sm shrink-0 ${
+                            tx.kind === "income"
+                              ? "text-blue-600"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {tx.kind === "income" ? "+" : "-"}
+                          {formatKRW(tx.amount)}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {modal && (
+        <TransactionFormModal
+          mode={modal.mode}
+          initial={modal.initial}
+          categories={categories}
+          onClose={() => setModal(null)}
+          onSaved={onSaved}
+        />
       )}
-    </div>
+    </>
   );
 }
 
@@ -97,9 +211,26 @@ function SummaryRow({
   bold?: boolean;
 }) {
   return (
-    <div className={`flex justify-between items-center ${bold ? "font-semibold" : ""}`}>
+    <div
+      className={`flex justify-between items-center ${bold ? "font-semibold" : ""}`}
+    >
       <span className="text-gray-500 text-sm">{label}</span>
       <span className={`text-sm ${className}`}>{value}</span>
     </div>
   );
+}
+
+function formatKRW(amount: number): string {
+  return amount.toLocaleString("ko-KR") + "원";
+}
+
+function todayKey(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function shortDate(key: string): string {
+  const [, m, d] = key.split("-");
+  return `${Number(m)}/${Number(d)}`;
 }
