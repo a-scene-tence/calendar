@@ -416,8 +416,9 @@ export default function CalendarMonth() {
                             style={{
                               gridColumn: `${colStart + 1} / span ${span}`,
                               backgroundColor: item.color,
+                              color: barTextColor(item.color),
                             }}
-                            className={`pointer-events-auto h-full min-w-0 px-1 text-[10px] leading-[15px] text-white truncate text-left ${
+                            className={`pointer-events-auto h-full min-w-0 px-1 text-[10px] font-medium leading-[15px] truncate text-left ${
                               roundLeft ? "rounded-l-sm" : ""
                             } ${roundRight ? "rounded-r-sm" : ""}`}
                             title={item.event.summary}
@@ -664,6 +665,24 @@ function weekLayout(
 
 function isAllDay(start: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(start);
+}
+
+// 배경색 밝기(YIQ)에 따라 대비되는 글씨색 반환(밝으면 진회색, 어두우면 흰색)
+function barTextColor(bg: string): string {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(bg.trim());
+  if (!m) return "#ffffff";
+  let hex = m[1];
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((c) => c + c)
+      .join("");
+  }
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 150 ? "#1f2937" : "#ffffff";
 }
 
 function buildMonthGrid(year: number, month: number): Date[] {
