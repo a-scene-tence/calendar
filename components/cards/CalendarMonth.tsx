@@ -21,14 +21,14 @@ type Calendar = {
   name: string;
   color: string;
   accessRole?: string;
+  isHoliday?: boolean;
   events: CalendarEvent[];
 };
 
 type Status = "loading" | "unauthorized" | "error" | "ok";
 
-type DayEntry = { calId: string; color: string; name: string; event: CalendarEvent };
-
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const TAB_ORDER = ["할일", "한일", "생활", "기타"];
 
 export default function CalendarMonth() {
   const today = new Date();
@@ -37,7 +37,7 @@ export default function CalendarMonth() {
     month: today.getMonth() + 1, // 1-12
   });
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [activeIds, setActiveIds] = useState<Set<string> | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(dateKey(today));
   const [status, setStatus] = useState<Status>("loading");
   const [modal, setModal] = useState<
@@ -61,57 +61,63 @@ export default function CalendarMonth() {
     load();
   }, [load]);
 
-  const allIds = useMemo(() => calendars.map((c) => c.id), [calendars]);
-  const isActive = (id: string) => (activeIds ? activeIds.has(id) : true);
+  // 카테고리(공휴일 제외) 탭 — TAB_ORDER 순서로 정렬, 나머지는 뒤에
+  const categoryCalendars = useMemo(() => {
+    const cats = calendars.filter((c) => !c.isHoliday);
+    return cats.slice().sort((a, b) => {
+      const ia = TAB_ORDER.indexOf(a.name);
+      const ib = TAB_ORDER.indexOf(b.name);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+  }, [calendars]);
 
-  const writableCalendars: WritableCalendar[] = useMemo(
-    () =>
-      calendars
-        .filter((c) => c.accessRole === "owner" || c.accessRole === "writer")
-        .map((c) => ({ id: c.id, name: c.name, color: c.color })),
+  const holidayCalendars = useMemo(
+    () => calendars.filter((c) => c.isHoliday),
     [calendars]
   );
 
-  function openCreate(dayKey: string | null) {
-    setModal({
-      mode: "create",
-      initial: blankEvent(dayKey ?? dateKey(new Date()), writableCalendars[0]?.id ?? ""),
-    });
-  }
-  function openEdit(entry: DayEntry) {
-    setModal({ mode: "edit", initial: toEventInitial(entry.event) });
-  }
-  function onSaved() {
-    setModal(null);
-    load();
-  }
+  const writableCalendars: WritableCalendar[] = useMemo(
+    () =>
+      categoryCalendars
+        .filter((c) => c.accessRole === "owner" || c.accessRole === "writer")
+        .map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    [categoryCalendars]
+  );
 
-  function toggleCalendar(id: string) {
-    setActiveIds((prev) => {
-      const base = prev ?? new Set(allIds);
-      const next = new Set(base);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  // activeId 유효성 보장(없거나 사라지면 첫 탭으로)
+  useEffect(() => {
+    if (categoryCalendars.length === 0) return;
+    if (!activeId || !categoryCalendars.some((c) => c.id === activeId)) {
+      setActiveId(categoryCalendars[0].id);
+    }
+  }, [categoryCalendars, activeId]);
 
-  // 활성 캘린더 일정을 날짜키(YYYY-MM-DD)로 묶기
-  const entriesByDay = useMemo(() => {
-    const map = new Map<string, DayEntry[]>();
-    for (const cal of calendars) {
-      if (!isActive(cal.id)) continue;
+  const activeCal = categoryCalendars.find((c) => c.id === activeId) ?? null;
+
+  // 선택된 탭 일정 (날짜별)
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    if (!activeCal) return map;
+    for (const event of activeCal.events) {
+      const key = eventDateKey(event.start);
+      if (!key) continue;
+      (map.get(key) ?? map.set(key, []).get(key)!).push(event);
+    }
+    return map;
+  }, [activeCal]);
+
+  // 공휴일 (항상 표시, 날짜별)
+  const holidaysByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const cal of holidayCalendars) {
       for (const event of cal.events) {
         const key = eventDateKey(event.start);
         if (!key) continue;
-        const arr = map.get(key) ?? [];
-        arr.push({ calId: cal.id, color: cal.color, name: cal.name, event });
-        map.set(key, arr);
+        (map.get(key) ?? map.set(key, []).get(key)!).push(event);
       }
     }
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calendars, activeIds]);
+  }, [holidayCalendars]);
 
   const gridDays = useMemo(
     () => buildMonthGrid(viewDate.year, viewDate.month),
@@ -136,6 +142,26 @@ export default function CalendarMonth() {
     setSelectedDay(dateKey(t));
   }
 
+  function defaultCalId(): string {
+    if (activeCal && writableCalendars.some((c) => c.id === activeCal.id)) {
+      return activeCal.id;
+    }
+    return writableCalendars[0]?.id ?? "";
+  }
+  function openCreate(dayKey: string | null) {
+    setModal({
+      mode: "create",
+      initial: blankEvent(dayKey ?? dateKey(new Date()), defaultCalId()),
+    });
+  }
+  function openEdit(event: CalendarEvent) {
+    setModal({ mode: "edit", initial: toEventInitial(event) });
+  }
+  function onSaved() {
+    setModal(null);
+    load();
+  }
+
   if (status === "unauthorized") {
     return (
       <Card>
@@ -158,218 +184,250 @@ export default function CalendarMonth() {
   }
 
   const todayKey = dateKey(new Date());
-  const selectedEntries = selectedDay
-    ? (entriesByDay.get(selectedDay) ?? [])
+  const selectedHolidays = selectedDay ? holidaysByDay.get(selectedDay) ?? [] : [];
+  const selectedEvents = selectedDay
+    ? (eventsByDay.get(selectedDay) ?? [])
         .slice()
-        .sort((a, b) => a.event.start.localeCompare(b.event.start))
+        .sort((a, b) => a.start.localeCompare(b.start))
     : [];
+  const canWrite = writableCalendars.length > 0;
 
   return (
     <>
-    <Card>
-      {/* 헤더: 월 이동 */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold flex items-center gap-2">
-          <span aria-hidden>📅</span> {viewDate.year}년 {viewDate.month}월
-        </h2>
-        <div className="flex items-center gap-1">
-          {writableCalendars.length > 0 && (
+      <Card>
+        {/* 헤더: 월 이동 */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <span aria-hidden>📅</span> {viewDate.year}년 {viewDate.month}월
+          </h2>
+          <div className="flex items-center gap-1">
+            {canWrite && (
+              <button
+                onClick={() => openCreate(selectedDay)}
+                className="px-2.5 py-1 mr-1 text-sky-600 hover:bg-sky-50 rounded-lg text-xs font-medium"
+              >
+                + 일정
+              </button>
+            )}
             <button
-              onClick={() => openCreate(selectedDay)}
-              className="px-2.5 py-1 mr-1 text-sky-600 hover:bg-sky-50 rounded-lg text-xs font-medium"
+              onClick={goPrev}
+              className="px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-sm"
+              aria-label="이전 달"
             >
-              + 일정
+              ‹
             </button>
-          )}
-          <button
-            onClick={goPrev}
-            className="px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-sm"
-            aria-label="이전 달"
-          >
-            ‹
-          </button>
-          <button
-            onClick={goToday}
-            className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-lg text-xs"
-          >
-            오늘
-          </button>
-          <button
-            onClick={goNext}
-            className="px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-sm"
-            aria-label="다음 달"
-          >
-            ›
-          </button>
+            <button
+              onClick={goToday}
+              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-lg text-xs"
+            >
+              오늘
+            </button>
+            <button
+              onClick={goNext}
+              className="px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-sm"
+              aria-label="다음 달"
+            >
+              ›
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* 카테고리 토글 칩 */}
-      {calendars.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {calendars.map((cal) => {
-            const active = isActive(cal.id);
+        {/* 카테고리 탭 (한 번에 하나만 선택) */}
+        {categoryCalendars.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {categoryCalendars.map((cal) => {
+              const active = cal.id === activeId;
+              return (
+                <button
+                  key={cal.id}
+                  onClick={() => setActiveId(cal.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                    active
+                      ? "border-transparent text-white"
+                      : "border-gray-200 bg-white text-gray-500"
+                  }`}
+                  style={active ? { backgroundColor: cal.color } : undefined}
+                  aria-pressed={active}
+                >
+                  {!active && (
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: cal.color }}
+                      aria-hidden
+                    />
+                  )}
+                  <span className="truncate max-w-[100px]">{cal.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 요일 헤더 (일=빨강, 토=파랑) */}
+        <div className="grid grid-cols-7 text-center text-xs mb-1">
+          {WEEKDAYS.map((w, i) => (
+            <div
+              key={w}
+              className={
+                i === 0
+                  ? "text-red-500"
+                  : i === 6
+                  ? "text-blue-500"
+                  : "text-gray-400"
+              }
+            >
+              {w}
+            </div>
+          ))}
+        </div>
+
+        {/* 월 그리드 */}
+        <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden">
+          {gridDays.map((d) => {
+            const key = dateKey(d);
+            const inMonth = d.getMonth() + 1 === viewDate.month;
+            const isToday = key === todayKey;
+            const isSelected = key === selectedDay;
+            const dow = d.getDay(); // 0=일 .. 6=토
+            const holidays = holidaysByDay.get(key) ?? [];
+            const events = eventsByDay.get(key) ?? [];
+            const isHolidayDay = holidays.length > 0;
+
+            const numberColor = !inMonth
+              ? "text-gray-300"
+              : dow === 0 || isHolidayDay
+              ? "text-red-500"
+              : dow === 6
+              ? "text-blue-500"
+              : "text-gray-700";
+
+            const shownHolidays = holidays.slice(0, 2);
+            const remainingSlots = Math.max(0, 2 - shownHolidays.length);
+            const shownEvents = events.slice(0, remainingSlots);
+            const extra =
+              holidays.length + events.length - shownHolidays.length - shownEvents.length;
+
             return (
               <button
-                key={cal.id}
-                onClick={() => toggleCalendar(cal.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                  active
-                    ? "border-gray-200 bg-gray-50 text-gray-700"
-                    : "border-gray-100 bg-white text-gray-300"
+                key={key}
+                onClick={() => setSelectedDay(key)}
+                className={`min-h-[60px] sm:min-h-[80px] bg-white p-1 flex flex-col items-stretch gap-0.5 text-left overflow-hidden ${
+                  isSelected ? "ring-2 ring-inset ring-sky-400" : ""
                 }`}
-                aria-pressed={active}
               >
                 <span
-                  className="h-2.5 w-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: active ? cal.color : "#e5e7eb" }}
-                  aria-hidden
-                />
-                <span className="truncate max-w-[100px]">{cal.name}</span>
+                  className={`text-xs leading-none mb-0.5 flex items-center justify-center h-5 w-5 self-center rounded-full ${
+                    isToday ? "bg-sky-500 text-white font-semibold" : numberColor
+                  }`}
+                >
+                  {d.getDate()}
+                </span>
+                {shownHolidays.map((h) => (
+                  <span
+                    key={h.id}
+                    className="text-[10px] leading-tight text-red-500 truncate"
+                  >
+                    {h.summary}
+                  </span>
+                ))}
+                {shownEvents.map((event) => (
+                  <span key={event.id} className="flex items-center gap-0.5 min-w-0">
+                    <span
+                      className="h-2.5 w-1 shrink-0 rounded-sm"
+                      style={{ backgroundColor: activeCal?.color ?? "#9ca3af" }}
+                      aria-hidden
+                    />
+                    <span className="text-[10px] leading-tight text-gray-700 truncate">
+                      {event.summary}
+                    </span>
+                  </span>
+                ))}
+                {extra > 0 && (
+                  <span className="text-[9px] leading-none text-gray-400 pl-1">
+                    +{extra}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
-      )}
 
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 text-center text-xs text-gray-400 mb-1">
-        {WEEKDAYS.map((w, i) => (
-          <div
-            key={w}
-            className={i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : ""}
-          >
-            {w}
-          </div>
-        ))}
-      </div>
+        {/* 선택한 날짜 상세 */}
+        <div className="mt-4">
+          {!selectedDay ? (
+            <p className="text-gray-400 text-sm">날짜를 탭하면 일정이 표시됩니다.</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium text-gray-600">
+                  {formatDayHeading(selectedDay)}
+                </h3>
+                {canWrite && (
+                  <button
+                    onClick={() => openCreate(selectedDay)}
+                    className="text-xs text-sky-600 hover:underline"
+                  >
+                    + 이 날 일정 추가
+                  </button>
+                )}
+              </div>
 
-      {/* 월 그리드 */}
-      <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden">
-        {gridDays.map((d) => {
-          const key = dateKey(d);
-          const inMonth = d.getMonth() + 1 === viewDate.month;
-          const isToday = key === todayKey;
-          const isSelected = key === selectedDay;
-          const dayEntries = (entriesByDay.get(key) ?? [])
-            .slice()
-            .sort((a, b) => a.event.start.localeCompare(b.event.start));
-          const shown = dayEntries.slice(0, 2);
-          const extra = dayEntries.length - shown.length;
-          return (
-            <button
-              key={key}
-              onClick={() => setSelectedDay(key)}
-              className={`min-h-[60px] sm:min-h-[80px] bg-white p-1 flex flex-col items-stretch gap-0.5 text-left overflow-hidden ${
-                isSelected ? "ring-2 ring-inset ring-sky-400" : ""
-              }`}
-            >
-              <span
-                className={`text-xs leading-none mb-0.5 flex items-center justify-center h-5 w-5 self-center rounded-full ${
-                  isToday ? "bg-sky-500 text-white font-semibold" : ""
-                } ${!inMonth ? "text-gray-300" : isToday ? "" : "text-gray-700"}`}
-              >
-                {d.getDate()}
-              </span>
-              {shown.map(({ event, color }) => (
-                <span
-                  key={event.id}
-                  className="flex items-center gap-0.5 min-w-0"
-                >
-                  <span
-                    className="h-2.5 w-1 shrink-0 rounded-sm"
-                    style={{ backgroundColor: color }}
-                    aria-hidden
-                  />
-                  <span className="text-[10px] leading-tight text-gray-700 truncate">
-                    {event.summary}
-                  </span>
-                </span>
-              ))}
-              {extra > 0 && (
-                <span className="text-[9px] leading-none text-gray-400 pl-1">
-                  +{extra}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 선택한 날짜 일정 목록 */}
-      <div className="mt-4">
-        {!selectedDay ? (
-          <p className="text-gray-400 text-sm">날짜를 탭하면 일정이 표시됩니다.</p>
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600">
-                {formatDayHeading(selectedDay)}
-              </h3>
-              {writableCalendars.length > 0 && (
-                <button
-                  onClick={() => openCreate(selectedDay)}
-                  className="text-xs text-sky-600 hover:underline"
-                >
-                  + 이 날 일정 추가
-                </button>
-              )}
-            </div>
-            {selectedEntries.length === 0 ? (
-              <p className="text-gray-400 text-sm">일정이 없습니다.</p>
-            ) : (
-              <ul className="space-y-1">
-                {selectedEntries.map((entry) => {
-                  const { event, color, name } = entry;
-                  const writable = writableCalendars.some(
-                    (c) => c.id === event.calendarId
-                  );
-                  return (
+              {selectedHolidays.length === 0 && selectedEvents.length === 0 ? (
+                <p className="text-gray-400 text-sm">일정이 없습니다.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {selectedHolidays.map((h) => (
+                    <li
+                      key={h.id}
+                      className="flex items-start gap-2 p-1.5 text-sm text-red-500"
+                    >
+                      <span className="w-12 shrink-0 text-xs text-red-400 mt-0.5">
+                        공휴일
+                      </span>
+                      <span className="min-w-0 truncate">{h.summary}</span>
+                    </li>
+                  ))}
+                  {selectedEvents.map((event) => (
                     <li key={event.id}>
                       <button
-                        onClick={() => writable && openEdit(entry)}
-                        disabled={!writable}
-                        className={`w-full flex items-start gap-2 rounded-lg p-1.5 text-left ${
-                          writable ? "hover:bg-gray-50" : "cursor-default"
-                        }`}
+                        onClick={() => openEdit(event)}
+                        className="w-full flex items-start gap-2 rounded-lg p-1.5 text-left hover:bg-gray-50"
                       >
                         <span className="text-xs text-gray-400 mt-0.5 shrink-0 w-12">
                           {formatTime(event.start)}
                         </span>
                         <span
                           className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: color }}
+                          style={{ backgroundColor: activeCal?.color ?? "#9ca3af" }}
                           aria-hidden
                         />
                         <span className="min-w-0">
-                          <span className="text-sm leading-snug">
-                            {event.summary}
-                          </span>
-                          <span className="block text-xs text-gray-400 truncate">
-                            {name}
-                            {event.location ? ` · ${event.location}` : ""}
-                          </span>
+                          <span className="text-sm leading-snug">{event.summary}</span>
+                          {event.location && (
+                            <span className="block text-xs text-gray-400 truncate">
+                              {event.location}
+                            </span>
+                          )}
                         </span>
                       </button>
                     </li>
-                  );
-                })}
-              </ul>
-            )}
-          </>
-        )}
-      </div>
-    </Card>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </Card>
 
-    {modal && (
-      <EventFormModal
-        mode={modal.mode}
-        initial={modal.initial}
-        calendars={writableCalendars}
-        onClose={() => setModal(null)}
-        onSaved={onSaved}
-      />
-    )}
+      {modal && (
+        <EventFormModal
+          mode={modal.mode}
+          initial={modal.initial}
+          calendars={writableCalendars}
+          onClose={() => setModal(null)}
+          onSaved={onSaved}
+        />
+      )}
     </>
   );
 }

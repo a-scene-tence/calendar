@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const EXCLUDED_NAMES = new Set(["대한민국의 휴일", "재경본부"]);
+const EXCLUDED_NAMES = new Set(["재경본부"]);
+const HOLIDAY_NAME = "대한민국의 휴일";
 const HOLIDAY_ID_PART = "holiday@group.v.calendar.google.com";
 
 export async function GET(request: NextRequest) {
@@ -67,11 +68,9 @@ export async function GET(request: NextRequest) {
     accessRole?: string;
   }> = (listJson.items ?? [])
     .filter((c: { selected?: boolean }) => c.selected !== false)
-    .filter((c: { id: string; summary?: string; summaryOverride?: string }) => {
+    .filter((c: { summary?: string; summaryOverride?: string }) => {
       const name = c.summaryOverride ?? c.summary ?? "";
-      if (EXCLUDED_NAMES.has(name)) return false;
-      if (c.id.includes(HOLIDAY_ID_PART)) return false;
-      return true;
+      return !EXCLUDED_NAMES.has(name); // 재경본부만 완전 제외(공휴일은 포함)
     });
 
   const eventParams = new URLSearchParams({
@@ -122,11 +121,13 @@ export async function GET(request: NextRequest) {
             )
         : [];
 
+      const name = cal.summaryOverride ?? cal.summary ?? "(이름 없음)";
       return {
         id: cal.id,
-        name: cal.summaryOverride ?? cal.summary ?? "(이름 없음)",
+        name,
         color: cal.backgroundColor ?? "#9ca3af",
         accessRole: cal.accessRole ?? "reader",
+        isHoliday: name === HOLIDAY_NAME || cal.id.includes(HOLIDAY_ID_PART),
         events,
       };
     })
