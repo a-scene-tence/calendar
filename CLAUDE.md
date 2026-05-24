@@ -43,6 +43,7 @@
 | 2026-05-23 | `npm run dev` 시 `Cannot find native binding`(globals.css 컴파일 500) | Tailwind v4가 쓰는 네이티브 패키지(`@tailwindcss/oxide`,`lightningcss`)가 npm 옵셔널 디펜던시 버그(#4828)로 미설치. lockfile은 정상 | `rm -rf node_modules package-lock.json && npm install`(클린 재설치) | 새 환경(Codespace/CI/Cloudflare 빌드)에서 의존성 문제 시 `npm install` 말고 lockfile까지 지우고 재설치 또는 `npm ci` 사용 |
 | 2026-05-24 | `npm run build` 타입 에러: `Cannot find name 'ServiceWorkerGlobalScope'` + `__SW_MANIFEST` 없음 (`app/sw.ts`) | tsconfig에 webworker lib 미포함, `__SW_MANIFEST`는 Serwist 빌드 주입 전역이라 타입 미선언 | `sw.ts` 상단에 `/// <reference lib="webworker" />` + `declare const self: ServiceWorkerGlobalScope & { __SW_MANIFEST: (PrecacheEntry\|string)[] }` | 서비스워커 파일은 webworker lib 참조 + 빌드 주입 전역 타입 직접 선언 |
 | 2026-05-24 | `npm run build` 타입 에러: `cookiesToSet implicitly has 'any'` (`lib/supabase/*.ts`) | `@supabase/ssr` setAll 콜백 파라미터 타입 미지정 | 파라미터에 `{name:string;value:string;options:Record<string,unknown>}[]` 명시 | strict 모드에서 콜백 인자는 명시적 타입 부여 |
+| 2026-05-24 | 캘린더 월 그리드에서 날짜 숫자가 일정 막대와 겹쳐 보임 | `<button>`은 단일 내용을 **세로 중앙 정렬**해서 `pt-1`로 상단 고정이 안 됨 → 숫자가 셀 중앙(~31px)에 위치, top-6 막대와 겹침 | 날짜칸 버튼에 `flex flex-col items-center` 부여해 숫자를 상단 고정 | 버튼 내부 내용을 상단 정렬하려면 `flex flex-col` 명시(버튼 기본 세로중앙정렬 주의) |
 
 ### 알려진 주의점 (시작 전 메모)
 - **Next.js on Cloudflare**: Node 전용 API 사용 시 edge 런타임에서 실패할 수 있음.

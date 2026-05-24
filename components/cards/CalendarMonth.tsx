@@ -27,8 +27,30 @@ type Calendar = {
 
 type Status = "loading" | "unauthorized" | "error" | "ok";
 
+// 레인 배정된 캘린더 아이템 (그리드 막대 렌더용)
+type CalItem = {
+  event: CalendarEvent;
+  startKey: string; // 포함 첫날 "YYYY-MM-DD"
+  endKey: string; // 포함 마지막날 "YYYY-MM-DD"
+  isHoliday: boolean;
+  allDay: boolean;
+  color: string;
+  lane: number;
+};
+
+// 한 주 안에서 막대가 차지하는 열 범위
+type Segment = {
+  item: CalItem;
+  colStart: number; // 0-6
+  span: number; // 칸 수
+  roundLeft: boolean; // 실제 시작이 이 주 안 → 좌측 둥글게
+  roundRight: boolean; // 실제 종료가 이 주 안 → 우측 둥글게
+};
+
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const TAB_ORDER = ["할일", "한일", "생활", "기타"];
+const MAX_LANES = 3; // 칸당 최대 막대 레인 수(초과분은 +N)
+const HOLIDAY_COLOR = "#ef4444"; // 공휴일 막대색(red-500)
 
 export default function CalendarMonth() {
   const today = new Date();
@@ -94,35 +116,65 @@ export default function CalendarMonth() {
 
   const activeCal = categoryCalendars.find((c) => c.id === activeId) ?? null;
 
-  // 선택된 탭 일정 (날짜별)
-  const eventsByDay = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>();
-    if (!activeCal) return map;
-    for (const event of activeCal.events) {
-      const key = eventDateKey(event.start);
-      if (!key) continue;
-      (map.get(key) ?? map.set(key, []).get(key)!).push(event);
-    }
-    return map;
-  }, [activeCal]);
-
-  // 공휴일 (항상 표시, 날짜별)
-  const holidaysByDay = useMemo(() => {
-    const map = new Map<string, CalendarEvent[]>();
-    for (const cal of holidayCalendars) {
-      for (const event of cal.events) {
-        const key = eventDateKey(event.start);
-        if (!key) continue;
-        (map.get(key) ?? map.set(key, []).get(key)!).push(event);
+  // 활성 탭 일정 + 공휴일을 통합해 전역 레인 배정(주 경계 넘어도 같은 레인 유지)
+  const items = useMemo<CalItem[]>(() => {
+    const raw: Omit<CalItem, "lane">[] = [];
+    if (activeCal) {
+      for (const event of activeCal.events) {
+        const { startKey, endKey } = eventRange(event);
+        raw.push({
+          event,
+          startKey,
+          endKey,
+          isHoliday: false,
+          allDay: isAllDay(event.start),
+          color: activeCal.color,
+        });
       }
     }
-    return map;
-  }, [holidayCalendars]);
+    for (const cal of holidayCalendars) {
+      for (const event of cal.events) {
+        const { startKey, endKey } = eventRange(event);
+        raw.push({
+          event,
+          startKey,
+          endKey,
+          isHoliday: true,
+          allDay: isAllDay(event.start),
+          color: HOLIDAY_COLOR,
+        });
+      }
+    }
+    // 시작일 오름차순 → 공휴일 우선 → 긴 기간 우선
+    raw.sort((a, b) => {
+      if (a.startKey !== b.startKey) return a.startKey < b.startKey ? -1 : 1;
+      if (a.isHoliday !== b.isHoliday) return a.isHoliday ? -1 : 1;
+      return b.endKey.localeCompare(a.endKey);
+    });
+    // 그리디 레인 배정: 각 레인의 마지막 endKey를 추적, 겹치지 않는 첫 레인에 배치
+    const laneEnds: string[] = [];
+    return raw.map((it) => {
+      let lane = 0;
+      while (lane < laneEnds.length && laneEnds[lane] >= it.startKey) lane++;
+      laneEnds[lane] = it.endKey;
+      return { ...it, lane };
+    });
+  }, [activeCal, holidayCalendars]);
 
   const gridDays = useMemo(
     () => buildMonthGrid(viewDate.year, viewDate.month),
     [viewDate.year, viewDate.month]
   );
+
+  // 6주(7일씩)로 분할, 주별 막대 레이아웃 계산
+  const weeks = useMemo(() => {
+    const result: { days: Date[]; lanes: Segment[][]; overflow: number[] }[] = [];
+    for (let i = 0; i < gridDays.length; i += 7) {
+      const days = gridDays.slice(i, i + 7);
+      result.push({ days, ...weekLayout(days, items) });
+    }
+    return result;
+  }, [gridDays, items]);
 
   function goPrev() {
     setSelectedDay(null);
@@ -184,12 +236,24 @@ export default function CalendarMonth() {
   }
 
   const todayKey = dateKey(new Date());
-  const selectedHolidays = selectedDay ? holidaysByDay.get(selectedDay) ?? [] : [];
-  const selectedEvents = selectedDay
-    ? (eventsByDay.get(selectedDay) ?? [])
-        .slice()
-        .sort((a, b) => a.start.localeCompare(b.start))
+  // 선택일을 "포함"하는 일정(다일이면 중간 날에도 표시)
+  const selectedItems = selectedDay
+    ? items.filter(
+        (it) => it.startKey <= selectedDay && selectedDay <= it.endKey
+      )
     : [];
+  const selectedHolidays = selectedItems
+    .filter((it) => it.isHoliday)
+    .map((it) => it.event);
+  const selectedEvents = selectedItems
+    .filter((it) => !it.isHoliday)
+    .map((it) => it.event)
+    .sort((a, b) => {
+      const aAll = isAllDay(a.start);
+      const bAll = isAllDay(b.start);
+      if (aAll !== bAll) return aAll ? -1 : 1; // 종일/다일 먼저
+      return a.start.localeCompare(b.start);
+    });
   const canWrite = writableCalendars.length > 0;
 
   return (
@@ -281,73 +345,108 @@ export default function CalendarMonth() {
           ))}
         </div>
 
-        {/* 월 그리드 */}
-        <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden">
-          {gridDays.map((d) => {
-            const key = dateKey(d);
-            const inMonth = d.getMonth() + 1 === viewDate.month;
-            const isToday = key === todayKey;
-            const isSelected = key === selectedDay;
-            const dow = d.getDay(); // 0=일 .. 6=토
-            const holidays = holidaysByDay.get(key) ?? [];
-            const events = eventsByDay.get(key) ?? [];
-            const isHolidayDay = holidays.length > 0;
-
-            const numberColor = !inMonth
-              ? "text-gray-300"
-              : dow === 0 || isHolidayDay
-              ? "text-red-500"
-              : dow === 6
-              ? "text-blue-500"
-              : "text-gray-700";
-
-            const shownHolidays = holidays.slice(0, 2);
-            const remainingSlots = Math.max(0, 2 - shownHolidays.length);
-            const shownEvents = events.slice(0, remainingSlots);
-            const extra =
-              holidays.length + events.length - shownHolidays.length - shownEvents.length;
-
+        {/* 월 그리드 (주 행 + 막대 오버레이) */}
+        <div className="flex flex-col gap-px bg-gray-100 rounded-lg overflow-hidden">
+          {weeks.map((week, wi) => {
+            const hasOverflow = week.overflow.some((n) => n > 0);
             return (
-              <button
-                key={key}
-                onClick={() => setSelectedDay(key)}
-                className={`min-h-[60px] sm:min-h-[80px] bg-white p-1 flex flex-col items-stretch gap-0.5 text-left overflow-hidden ${
-                  isSelected ? "ring-2 ring-inset ring-sky-400" : ""
-                }`}
+              <div
+                key={wi}
+                className="relative grid grid-cols-7 gap-px bg-gray-100"
               >
-                <span
-                  className={`text-xs leading-none mb-0.5 flex items-center justify-center h-5 w-5 self-center rounded-full ${
-                    isToday ? "bg-sky-500 text-white font-semibold" : numberColor
-                  }`}
-                >
-                  {d.getDate()}
-                </span>
-                {shownHolidays.map((h) => (
-                  <span
-                    key={h.id}
-                    className="text-[10px] leading-tight text-red-500 truncate"
-                  >
-                    {h.summary}
-                  </span>
-                ))}
-                {shownEvents.map((event) => (
-                  <span key={event.id} className="flex items-center gap-0.5 min-w-0">
-                    <span
-                      className="h-2.5 w-1 shrink-0 rounded-sm"
-                      style={{ backgroundColor: activeCal?.color ?? "#9ca3af" }}
-                      aria-hidden
-                    />
-                    <span className="text-[10px] leading-tight text-gray-700 truncate">
-                      {event.summary}
-                    </span>
-                  </span>
-                ))}
-                {extra > 0 && (
-                  <span className="text-[9px] leading-none text-gray-400 pl-1">
-                    +{extra}
-                  </span>
-                )}
-              </button>
+                {/* 배경: 날짜 칸 */}
+                {week.days.map((d) => {
+                  const key = dateKey(d);
+                  const inMonth = d.getMonth() + 1 === viewDate.month;
+                  const isToday = key === todayKey;
+                  const isSelected = key === selectedDay;
+                  const dow = d.getDay();
+                  const isHolidayDay = items.some(
+                    (it) =>
+                      it.isHoliday &&
+                      it.startKey <= key &&
+                      key <= it.endKey
+                  );
+                  const numberColor = !inMonth
+                    ? "text-gray-300"
+                    : dow === 0 || isHolidayDay
+                    ? "text-red-500"
+                    : dow === 6
+                    ? "text-blue-500"
+                    : "text-gray-700";
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedDay(key)}
+                      className={`min-h-[92px] sm:min-h-[104px] bg-white pt-1 flex flex-col items-center ${
+                        isSelected ? "ring-2 ring-inset ring-sky-400 relative z-20" : ""
+                      }`}
+                    >
+                      <span
+                        className={`text-xs leading-none flex items-center justify-center h-5 w-5 rounded-full ${
+                          isToday
+                            ? "bg-sky-500 text-white font-semibold"
+                            : numberColor
+                        }`}
+                      >
+                        {d.getDate()}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {/* 오버레이: 막대 레인 */}
+                <div className="absolute inset-x-0 top-[26px] bottom-0 px-px flex flex-col gap-0.5 pointer-events-none z-10">
+                  {week.lanes.map((segs, lane) => (
+                    <div key={lane} className="grid grid-cols-7 gap-px h-[15px]">
+                      {segs.map((seg) => {
+                        const { item, colStart, span, roundLeft, roundRight } = seg;
+                        const label =
+                          !item.allDay && item.event.start
+                            ? `${hhmm(new Date(item.event.start))} ${item.event.summary}`
+                            : item.event.summary;
+                        return (
+                          <button
+                            key={item.event.id}
+                            onClick={() =>
+                              item.isHoliday
+                                ? setSelectedDay(item.startKey > dateKey(week.days[0]) ? item.startKey : dateKey(week.days[0]))
+                                : openEdit(item.event)
+                            }
+                            style={{
+                              gridColumn: `${colStart + 1} / span ${span}`,
+                              backgroundColor: item.color,
+                            }}
+                            className={`pointer-events-auto h-full min-w-0 px-1 text-[10px] leading-[15px] text-white truncate text-left ${
+                              roundLeft ? "rounded-l-sm" : ""
+                            } ${roundRight ? "rounded-r-sm" : ""}`}
+                            title={item.event.summary}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  {hasOverflow && (
+                    <div className="grid grid-cols-7 gap-px">
+                      {week.overflow.map((n, c) =>
+                        n > 0 ? (
+                          <span
+                            key={c}
+                            style={{ gridColumn: `${c + 1}` }}
+                            className="text-[9px] leading-none text-gray-400 pl-0.5"
+                          >
+                            +{n}
+                          </span>
+                        ) : (
+                          <span key={c} style={{ gridColumn: `${c + 1}` }} />
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -506,12 +605,61 @@ function dateKey(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-// 종일 일정은 "YYYY-MM-DD", 시간 일정은 ISO datetime → 로컬 날짜키로 변환
-function eventDateKey(start: string): string | null {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(start)) return start;
-  const d = new Date(start);
-  if (isNaN(d.getTime())) return null;
-  return dateKey(d);
+// 일정의 포함 날짜 범위(inclusive) → { startKey, endKey } 둘 다 "YYYY-MM-DD"
+function eventRange(event: CalendarEvent): { startKey: string; endKey: string } {
+  if (isAllDay(event.start)) {
+    let endKey = event.start;
+    if (event.end && isAllDay(event.end) && event.end > event.start) {
+      endKey = subtractOneDay(event.end); // Google 종일 종료는 exclusive
+    }
+    return { startKey: event.start, endKey };
+  }
+  const s = new Date(event.start);
+  const startKey = dateKey(s);
+  if (!event.end) return { startKey, endKey: startKey };
+  const e = new Date(event.end);
+  let endKey = dateKey(e);
+  // 자정 종료이고 다른 날이면 전날까지로 보정(시작 < 종료일 때만)
+  if (
+    endKey > startKey &&
+    e.getHours() === 0 &&
+    e.getMinutes() === 0 &&
+    e.getSeconds() === 0
+  ) {
+    endKey = subtractOneDay(endKey);
+  }
+  return { startKey, endKey: endKey < startKey ? startKey : endKey };
+}
+
+// 한 주(7일)의 막대 레이아웃: 레인별 세그먼트 + 날짜별 숨김(+N) 개수
+function weekLayout(
+  weekDays: Date[],
+  items: CalItem[]
+): { lanes: Segment[][]; overflow: number[] } {
+  const weekStart = dateKey(weekDays[0]);
+  const weekEnd = dateKey(weekDays[6]);
+  const lanes: Segment[][] = Array.from({ length: MAX_LANES }, () => []);
+  const overflow = new Array(7).fill(0);
+  for (const item of items) {
+    if (item.endKey < weekStart || item.startKey > weekEnd) continue;
+    const segStart = item.startKey > weekStart ? item.startKey : weekStart;
+    const segEnd = item.endKey < weekEnd ? item.endKey : weekEnd;
+    const colStart = weekDays.findIndex((d) => dateKey(d) === segStart);
+    const colEnd = weekDays.findIndex((d) => dateKey(d) === segEnd);
+    if (colStart < 0 || colEnd < 0) continue;
+    if (item.lane >= MAX_LANES) {
+      for (let c = colStart; c <= colEnd; c++) overflow[c]++;
+      continue;
+    }
+    lanes[item.lane].push({
+      item,
+      colStart,
+      span: colEnd - colStart + 1,
+      roundLeft: item.startKey >= weekStart,
+      roundRight: item.endKey <= weekEnd,
+    });
+  }
+  return { lanes, overflow };
 }
 
 function isAllDay(start: string): boolean {
