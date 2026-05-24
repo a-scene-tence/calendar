@@ -75,6 +75,12 @@ export async function GET() {
         { headers }
       );
 
+      if (!res.ok) {
+        console.warn(
+          `[calendar] events fetch failed: ${cal.summary ?? cal.id} → ${res.status}`
+        );
+      }
+
       const events = res.ok
         ? ((await res.json()).items ?? [])
             .map(

@@ -17,25 +17,31 @@ type Calendar = {
   events: CalendarEvent[];
 };
 
+type Status = "loading" | "unauthorized" | "error" | "ok";
+
 export default function CalendarSection() {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [status, setStatus] = useState<Status>("loading");
 
   useEffect(() => {
     fetch("/api/calendar")
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        if (r.status === 401) {
+          setStatus("unauthorized");
+          return;
+        }
+        if (!r.ok) {
+          setStatus("error");
+          return;
+        }
+        const data = await r.json();
         setCalendars(data.calendars ?? []);
-        setLoading(false);
+        setStatus("ok");
       })
-      .catch(() => {
-        setError(true);
-        setLoading(false);
-      });
+      .catch(() => setStatus("error"));
   }, []);
 
-  if (loading) {
+  if (status === "loading") {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <p className="text-gray-400 text-sm">불러오는 중...</p>
@@ -43,16 +49,24 @@ export default function CalendarSection() {
     );
   }
 
-  if (error) {
+  if (status === "unauthorized") {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <p className="text-red-400 text-sm">
-          캘린더를 불러올 수 없습니다.{" "}
-          <a href="/login" className="underline">
-            로그인
+        <p className="text-amber-600 text-sm">
+          세션이 만료되었습니다(Google 토큰 만료).{" "}
+          <a href="/login" className="underline font-medium">
+            다시 로그인
           </a>{" "}
           후 이용하세요.
         </p>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <p className="text-red-400 text-sm">캘린더를 불러올 수 없습니다.</p>
       </div>
     );
   }
