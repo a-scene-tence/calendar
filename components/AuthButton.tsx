@@ -9,6 +9,7 @@ export default function AuthButton() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    if (!supabase) return;
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
     const {
       data: { subscription },
@@ -19,9 +20,12 @@ export default function AuthButton() {
   }, [supabase]);
 
   async function signOut() {
+    if (!supabase) return;
     await supabase.auth.signOut();
     location.reload();
   }
+
+  if (!supabase) return null;
 
   if (!user) {
     return (
