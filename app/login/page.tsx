@@ -13,7 +13,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        scopes: "https://www.googleapis.com/auth/calendar.readonly",
+        scopes: "https://www.googleapis.com/auth/calendar",
         redirectTo: `${location.origin}/api/auth/callback`,
         queryParams: { access_type: "offline", prompt: "consent" },
       },

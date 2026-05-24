@@ -64,6 +64,7 @@ export async function GET(request: NextRequest) {
     summaryOverride?: string;
     backgroundColor?: string;
     selected?: boolean;
+    accessRole?: string;
   }> = (listJson.items ?? [])
     .filter((c: { selected?: boolean }) => c.selected !== false)
     .filter((c: { id: string; summary?: string; summaryOverride?: string }) => {
@@ -107,6 +108,8 @@ export async function GET(request: NextRequest) {
                 location?: string;
               }) => ({
                 id: `${cal.id}:${item.id}`,
+                eventId: item.id,
+                calendarId: cal.id,
                 summary: item.summary ?? "(제목 없음)",
                 start: item.start?.dateTime ?? item.start?.date ?? "",
                 end: item.end?.dateTime ?? item.end?.date ?? "",
@@ -123,6 +126,7 @@ export async function GET(request: NextRequest) {
         id: cal.id,
         name: cal.summaryOverride ?? cal.summary ?? "(이름 없음)",
         color: cal.backgroundColor ?? "#9ca3af",
+        accessRole: cal.accessRole ?? "reader",
         events,
       };
     })
