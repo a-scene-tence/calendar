@@ -28,9 +28,7 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getSession();
 
   // 세션의 provider_token 사용, 없으면 DB refresh_token으로 갱신 시도
-  // [임시 진단] ?_refresh=1 이면 세션 토큰을 무시하고 강제로 갱신 경로 검증
-  const forceRefresh = request.nextUrl.searchParams.get("_refresh") === "1";
-  let token = forceRefresh ? null : (session?.provider_token ?? null);
+  let token = session?.provider_token ?? null;
   if (!token) {
     token = await refreshGoogleToken(supabase);
     if (!token) {
