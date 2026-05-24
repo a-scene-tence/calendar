@@ -1,4 +1,4 @@
-import CalendarSection from "@/components/cards/CalendarSection";
+import CalendarMonth from "@/components/cards/CalendarMonth";
 import BudgetCard from "@/components/cards/BudgetCard";
 import AuthButton from "@/components/AuthButton";
 
@@ -20,8 +20,8 @@ export default function DashboardPage() {
         </div>
         <AuthButton />
       </header>
-      <main className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-        <CalendarSection />
+      <main className="space-y-4">
+        <CalendarMonth />
         <BudgetCard />
       </main>
     </div>

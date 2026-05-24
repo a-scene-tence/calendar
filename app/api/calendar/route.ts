@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function GET() {
+const EXCLUDED_NAMES = new Set(["대한민국의 휴일", "재경본부"]);
+const HOLIDAY_ID_PART = "holiday@group.v.calendar.google.com";
+
+export async function GET(request: NextRequest) {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -32,12 +35,19 @@ export async function GET() {
 
   const headers = { Authorization: `Bearer ${providerToken}` };
 
+  // 표시할 월: ?year=&month=(1-12), 없으면 현재 월. 그리드 앞뒤 주를 위해 ±7일 패딩.
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const PAST_DAYS = 7;
-  const FUTURE_DAYS = 14;
+  const PAD_DAYS = 7;
   const now = new Date();
-  const timeMin = new Date(now.getTime() - PAST_DAYS * DAY_MS).toISOString();
-  const timeMax = new Date(now.getTime() + FUTURE_DAYS * DAY_MS).toISOString();
+  const params = request.nextUrl.searchParams;
+  const year = Number(params.get("year")) || now.getFullYear();
+  const month = Number(params.get("month")) || now.getMonth() + 1; // 1-12
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 0); // 해당 월 말일
+  const timeMin = new Date(monthStart.getTime() - PAD_DAYS * DAY_MS).toISOString();
+  const timeMax = new Date(
+    monthEnd.getTime() + (PAD_DAYS + 1) * DAY_MS
+  ).toISOString();
 
   const listRes = await fetch(
     "https://www.googleapis.com/calendar/v3/users/me/calendarList",
@@ -54,16 +64,21 @@ export async function GET() {
     summaryOverride?: string;
     backgroundColor?: string;
     selected?: boolean;
-  }> = (listJson.items ?? []).filter(
-    (c: { selected?: boolean }) => c.selected !== false
-  );
+  }> = (listJson.items ?? [])
+    .filter((c: { selected?: boolean }) => c.selected !== false)
+    .filter((c: { id: string; summary?: string; summaryOverride?: string }) => {
+      const name = c.summaryOverride ?? c.summary ?? "";
+      if (EXCLUDED_NAMES.has(name)) return false;
+      if (c.id.includes(HOLIDAY_ID_PART)) return false;
+      return true;
+    });
 
   const eventParams = new URLSearchParams({
     timeMin,
     timeMax,
     singleEvents: "true",
     orderBy: "startTime",
-    maxResults: "50",
+    maxResults: "100",
   });
 
   const grouped = await Promise.all(
