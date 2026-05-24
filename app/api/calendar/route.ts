@@ -32,11 +32,12 @@ export async function GET() {
 
   const headers = { Authorization: `Bearer ${providerToken}` };
 
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const PAST_DAYS = 7;
+  const FUTURE_DAYS = 14;
   const now = new Date();
-  const timeMin = now.toISOString();
-  const timeMax = new Date(
-    now.getTime() + 7 * 24 * 60 * 60 * 1000
-  ).toISOString();
+  const timeMin = new Date(now.getTime() - PAST_DAYS * DAY_MS).toISOString();
+  const timeMax = new Date(now.getTime() + FUTURE_DAYS * DAY_MS).toISOString();
 
   const listRes = await fetch(
     "https://www.googleapis.com/calendar/v3/users/me/calendarList",
@@ -62,10 +63,10 @@ export async function GET() {
     timeMax,
     singleEvents: "true",
     orderBy: "startTime",
-    maxResults: "20",
+    maxResults: "50",
   });
 
-  const perCalendar = await Promise.all(
+  const grouped = await Promise.all(
     calendars.map(async (cal) => {
       const res = await fetch(
         `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
@@ -73,33 +74,38 @@ export async function GET() {
         )}/events?${eventParams}`,
         { headers }
       );
-      if (!res.ok) return [];
-      const json = await res.json();
-      return (json.items ?? []).map(
-        (item: {
-          id: string;
-          summary?: string;
-          start?: { dateTime?: string; date?: string };
-          end?: { dateTime?: string; date?: string };
-          location?: string;
-        }) => ({
-          id: `${cal.id}:${item.id}`,
-          summary: item.summary ?? "(제목 없음)",
-          start: item.start?.dateTime ?? item.start?.date ?? "",
-          end: item.end?.dateTime ?? item.end?.date ?? "",
-          location: item.location,
-          calendarName: cal.summaryOverride ?? cal.summary ?? "",
-          color: cal.backgroundColor ?? "#9ca3af",
-        })
-      );
+
+      const events = res.ok
+        ? ((await res.json()).items ?? [])
+            .map(
+              (item: {
+                id: string;
+                summary?: string;
+                start?: { dateTime?: string; date?: string };
+                end?: { dateTime?: string; date?: string };
+                location?: string;
+              }) => ({
+                id: `${cal.id}:${item.id}`,
+                summary: item.summary ?? "(제목 없음)",
+                start: item.start?.dateTime ?? item.start?.date ?? "",
+                end: item.end?.dateTime ?? item.end?.date ?? "",
+                location: item.location,
+              })
+            )
+            .filter((e: { start: string }) => e.start)
+            .sort((a: { start: string }, b: { start: string }) =>
+              a.start.localeCompare(b.start)
+            )
+        : [];
+
+      return {
+        id: cal.id,
+        name: cal.summaryOverride ?? cal.summary ?? "(이름 없음)",
+        color: cal.backgroundColor ?? "#9ca3af",
+        events,
+      };
     })
   );
 
-  const events = perCalendar
-    .flat()
-    .filter((e) => e.start)
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .slice(0, 15);
-
-  return NextResponse.json({ events });
+  return NextResponse.json({ calendars: grouped });
 }
