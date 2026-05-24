@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import TransactionFormModal, {
   Category,
   TransactionInitial,
 } from "@/components/TransactionFormModal";
+import { normalizeLedgerJson } from "@/lib/ledger-import";
+
+const LEDGER_URL = process.env.NEXT_PUBLIC_LEDGER_URL;
 
 type Summary = { income: number; expense: number; balance: number };
 
@@ -29,6 +32,9 @@ export default function BudgetCard() {
   const [modal, setModal] = useState<
     { mode: "create" | "edit"; initial: TransactionInitial } | null
   >(null);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
     setStatus("loading");
@@ -79,24 +85,100 @@ export default function BudgetCard() {
     load();
   }
 
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // 같은 파일 재선택 허용
+    if (!file) return;
+    setImportMsg(null);
+
+    let records;
+    try {
+      records = normalizeLedgerJson(JSON.parse(await file.text()));
+    } catch {
+      setImportMsg("JSON 파일을 읽을 수 없습니다.");
+      return;
+    }
+    if (records.length === 0) {
+      setImportMsg("가져올 거래를 찾지 못했습니다.");
+      return;
+    }
+    if (!confirm(`${records.length}건을 가져올까요?`)) return;
+
+    setImporting(true);
+    try {
+      const res = await fetch("/api/transactions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactions: records }),
+      });
+      if (res.status === 401) {
+        setImportMsg("세션 만료. 다시 로그인하세요.");
+        return;
+      }
+      if (!res.ok) {
+        setImportMsg("가져오기에 실패했습니다.");
+        return;
+      }
+      const { imported, skipped } = await res.json();
+      setImportMsg(`${imported}건 추가, ${skipped}건 중복 건너뜀`);
+      await load();
+    } catch {
+      setImportMsg("가져오기 중 오류가 발생했습니다.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const monthLabel = `${new Date().getMonth() + 1}월`;
 
   return (
     <>
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-y-2 mb-4">
+          <h2 className="text-base font-semibold flex items-center gap-2 whitespace-nowrap">
             <span aria-hidden>💰</span> {monthLabel} 가계부
           </h2>
-          {status === "ok" && (
-            <button
-              onClick={openCreate}
-              className="px-2.5 py-1 text-sky-600 hover:bg-sky-50 rounded-lg text-xs font-medium"
-            >
-              + 거래
-            </button>
-          )}
+          <div className="flex items-center gap-1 ml-auto">
+            {LEDGER_URL && (
+              <a
+                href={LEDGER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2.5 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-xs font-medium"
+              >
+                기존 가계부 ↗
+              </a>
+            )}
+            {status === "ok" && (
+              <>
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={importing}
+                  className="px-2.5 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-xs font-medium disabled:opacity-50"
+                >
+                  {importing ? "가져오는 중…" : "가져오기"}
+                </button>
+                <button
+                  onClick={openCreate}
+                  className="px-2.5 py-1 text-sky-600 hover:bg-sky-50 rounded-lg text-xs font-medium"
+                >
+                  + 거래
+                </button>
+              </>
+            )}
+          </div>
         </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          onChange={onFilePicked}
+          className="hidden"
+        />
+        {importMsg && (
+          <p className="text-xs text-gray-500 mb-3 -mt-1">{importMsg}</p>
+        )}
 
         {status === "loading" && (
           <p className="text-gray-400 text-sm">불러오는 중…</p>
