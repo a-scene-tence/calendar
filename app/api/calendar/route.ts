@@ -4,16 +4,23 @@ import { NextResponse } from "next/server";
 export async function GET() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const providerToken = session.provider_token;
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const providerToken = session?.provider_token;
   if (!providerToken) {
-    return NextResponse.json({ error: "No provider token" }, { status: 401 });
+    return NextResponse.json(
+      { error: "No Google token. Re-login required." },
+      { status: 401 }
+    );
   }
 
   const now = new Date();
