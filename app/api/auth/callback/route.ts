@@ -14,8 +14,16 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const session = data.session;
+      if (session?.provider_refresh_token) {
+        await supabase.from("user_tokens").upsert({
+          user_id: session.user.id,
+          google_refresh_token: session.provider_refresh_token,
+          updated_at: new Date().toISOString(),
+        });
+      }
       return NextResponse.redirect(`${baseUrl}${next}`);
     }
   }

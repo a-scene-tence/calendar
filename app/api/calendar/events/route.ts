@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { refreshGoogleToken } from "@/lib/google-token";
 import { NextRequest, NextResponse } from "next/server";
 
 const TIME_ZONE = "Asia/Seoul";
@@ -23,7 +24,10 @@ async function getProviderToken(): Promise<TokenResult> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  const token = session?.provider_token;
+  let token = session?.provider_token ?? null;
+  if (!token) {
+    token = await refreshGoogleToken(supabase);
+  }
   if (!token) {
     return {
       error: NextResponse.json(

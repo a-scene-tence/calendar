@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { refreshGoogleToken } from "@/lib/google-token";
 import { NextRequest, NextResponse } from "next/server";
 
 const EXCLUDED_NAMES = new Set(["재경본부"]);
@@ -26,15 +27,17 @@ export async function GET(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const providerToken = session?.provider_token;
-  if (!providerToken) {
-    return NextResponse.json(
-      { error: "No Google token. Re-login required." },
-      { status: 401 }
-    );
+  // 세션의 provider_token 사용, 없으면 DB refresh_token으로 갱신 시도
+  let token = session?.provider_token ?? null;
+  if (!token) {
+    token = await refreshGoogleToken(supabase);
+    if (!token) {
+      return NextResponse.json(
+        { error: "No Google token. Re-login required." },
+        { status: 401 }
+      );
+    }
   }
-
-  const headers = { Authorization: `Bearer ${providerToken}` };
 
   // 표시할 월: ?year=&month=(1-12), 없으면 현재 월. 그리드 앞뒤 주를 위해 ±7일 패딩.
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -50,13 +53,32 @@ export async function GET(request: NextRequest) {
     monthEnd.getTime() + (PAD_DAYS + 1) * DAY_MS
   ).toISOString();
 
-  const listRes = await fetch(
+  let listRes = await fetch(
     "https://www.googleapis.com/calendar/v3/users/me/calendarList",
-    { headers }
+    { headers: { Authorization: `Bearer ${token}` } }
   );
+
+  // 토큰 만료(401) 시 갱신 후 재시도 1회
+  if (listRes.status === 401) {
+    const refreshed = await refreshGoogleToken(supabase);
+    if (!refreshed) {
+      return NextResponse.json(
+        { error: "Token expired. Re-login required." },
+        { status: 401 }
+      );
+    }
+    token = refreshed;
+    listRes = await fetch(
+      "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  }
+
   if (!listRes.ok) {
     return NextResponse.json({ error: "Calendar API failed" }, { status: 502 });
   }
+
+  const headers = { Authorization: `Bearer ${token}` };
 
   const listJson = await listRes.json();
   const calendars: Array<{
