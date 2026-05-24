@@ -6,6 +6,8 @@ type CalendarEvent = {
   id: string;
   summary: string;
   start: string;
+  calendarName?: string;
+  color?: string;
 };
 
 export default function CalendarCard() {
@@ -56,7 +58,19 @@ export default function CalendarCard() {
             <span className="text-xs text-gray-400 mt-0.5 shrink-0 w-16">
               {formatStart(e.start)}
             </span>
-            <span className="text-sm leading-snug">{e.summary}</span>
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: e.color ?? "#9ca3af" }}
+              aria-hidden
+            />
+            <span className="min-w-0">
+              <span className="text-sm leading-snug">{e.summary}</span>
+              {e.calendarName && (
+                <span className="block text-xs text-gray-400 truncate">
+                  {e.calendarName}
+                </span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
