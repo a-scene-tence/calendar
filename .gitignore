@@ -35,6 +35,9 @@
 /public/worker-*.js
 /public/sw.js.map
 
+# 개인 금융 백업(런타임 가져오기는 브라우저 업로드 사용 → 저장소에 두지 않음)
+/data/ledger-backup.json
+
 # misc
 .DS_Store
 *.pem
