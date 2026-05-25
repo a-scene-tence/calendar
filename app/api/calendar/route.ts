@@ -40,18 +40,32 @@ export async function GET(request: NextRequest) {
   }
 
   // 표시할 월: ?year=&month=(1-12), 없으면 현재 월. 그리드 앞뒤 주를 위해 ±7일 패딩.
+  // 검색: ?q= 가 있으면 현재 기준 ±6개월 범위에서 전 캘린더 검색.
   const DAY_MS = 24 * 60 * 60 * 1000;
   const PAD_DAYS = 7;
   const now = new Date();
   const params = request.nextUrl.searchParams;
-  const year = Number(params.get("year")) || now.getFullYear();
-  const month = Number(params.get("month")) || now.getMonth() + 1; // 1-12
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd = new Date(year, month, 0); // 해당 월 말일
-  const timeMin = new Date(monthStart.getTime() - PAD_DAYS * DAY_MS).toISOString();
-  const timeMax = new Date(
-    monthEnd.getTime() + (PAD_DAYS + 1) * DAY_MS
-  ).toISOString();
+  const q = (params.get("q") ?? "").trim();
+
+  let timeMin: string;
+  let timeMax: string;
+  if (q) {
+    const lo = new Date(now);
+    lo.setMonth(lo.getMonth() - 6);
+    const hi = new Date(now);
+    hi.setMonth(hi.getMonth() + 6);
+    timeMin = lo.toISOString();
+    timeMax = hi.toISOString();
+  } else {
+    const year = Number(params.get("year")) || now.getFullYear();
+    const month = Number(params.get("month")) || now.getMonth() + 1; // 1-12
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0); // 해당 월 말일
+    timeMin = new Date(monthStart.getTime() - PAD_DAYS * DAY_MS).toISOString();
+    timeMax = new Date(
+      monthEnd.getTime() + (PAD_DAYS + 1) * DAY_MS
+    ).toISOString();
+  }
 
   let listRes = await fetch(
     "https://www.googleapis.com/calendar/v3/users/me/calendarList",
@@ -94,6 +108,59 @@ export async function GET(request: NextRequest) {
       const name = c.summaryOverride ?? c.summary ?? "";
       return !EXCLUDED_NAMES.has(name); // 재경본부만 완전 제외(공휴일은 포함)
     });
+
+  // 검색 모드: 전 캘린더에서 q 매칭 일정을 평면 목록으로 반환
+  if (q) {
+    const searchParams = new URLSearchParams({
+      timeMin,
+      timeMax,
+      q,
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "50",
+    });
+    const perCal = await Promise.all(
+      calendars.map(async (cal) => {
+        const res = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+            cal.id
+          )}/events?${searchParams}`,
+          { headers }
+        );
+        if (!res.ok) return [];
+        const name = cal.summaryOverride ?? cal.summary ?? "(이름 없음)";
+        const isHoliday =
+          name === HOLIDAY_NAME || cal.id.includes(HOLIDAY_ID_PART);
+        const color = cal.backgroundColor ?? "#9ca3af";
+        return ((await res.json()).items ?? [])
+          .map(
+            (item: {
+              id: string;
+              summary?: string;
+              start?: { dateTime?: string; date?: string };
+              end?: { dateTime?: string; date?: string };
+              location?: string;
+            }) => ({
+              id: `${cal.id}:${item.id}`,
+              eventId: item.id,
+              calendarId: cal.id,
+              calendarName: name,
+              color,
+              isHoliday,
+              summary: item.summary ?? "(제목 없음)",
+              start: item.start?.dateTime ?? item.start?.date ?? "",
+              end: item.end?.dateTime ?? item.end?.date ?? "",
+              location: item.location,
+            })
+          )
+          .filter((e: { start: string }) => e.start);
+      })
+    );
+    const results = perCal
+      .flat()
+      .sort((a, b) => a.start.localeCompare(b.start));
+    return NextResponse.json({ results });
+  }
 
   const eventParams = new URLSearchParams({
     timeMin,

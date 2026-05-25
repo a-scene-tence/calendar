@@ -47,6 +47,20 @@ type Segment = {
   roundRight: boolean; // 실제 종료가 이 주 안 → 우측 둥글게
 };
 
+// 검색 결과(여러 달·전 캘린더)
+type SearchResult = {
+  id: string;
+  eventId: string;
+  calendarId: string;
+  calendarName: string;
+  color: string;
+  isHoliday: boolean;
+  summary: string;
+  start: string;
+  end?: string;
+  location?: string;
+};
+
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const TAB_ORDER = ["할일", "한일", "생활", "기타"];
 const MAX_LANES = 3; // 칸당 최대 막대 레인 수(초과분은 +N)
@@ -65,6 +79,10 @@ export default function CalendarMonth() {
   const [modal, setModal] = useState<
     { mode: "create" | "edit"; initial: EventInitial } | null
   >(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const load = useCallback(() => {
     setStatus("loading");
@@ -212,6 +230,36 @@ export default function CalendarMonth() {
   function onSaved() {
     setModal(null);
     load();
+    if (searchQuery) runSearch(searchQuery);
+  }
+
+  async function runSearch(qStr: string) {
+    const q = qStr.trim();
+    if (!q) {
+      clearSearch();
+      return;
+    }
+    setSearchQuery(q);
+    setSearching(true);
+    try {
+      const r = await fetch(`/api/calendar?q=${encodeURIComponent(q)}`);
+      if (r.ok) {
+        const d = await r.json();
+        setSearchResults(d.results ?? []);
+      } else {
+        setSearchResults([]);
+      }
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }
+  function clearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearching(false);
   }
 
   if (status === "unauthorized") {
@@ -296,6 +344,91 @@ export default function CalendarMonth() {
           </div>
         </div>
 
+        {/* 검색 */}
+        <div className="mb-4 flex items-center gap-2">
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") runSearch(searchInput);
+            }}
+            placeholder="일정 검색 (제목·메모, ±6개월)"
+            className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+          />
+          <button
+            onClick={() => runSearch(searchInput)}
+            className="px-3 py-2 rounded-lg bg-sky-500 text-white text-sm font-medium shrink-0 hover:bg-sky-600"
+          >
+            검색
+          </button>
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="px-2.5 py-2 rounded-lg border border-gray-200 text-gray-500 text-sm shrink-0 hover:bg-gray-50"
+              aria-label="검색 닫기"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {searchQuery ? (
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 mb-2">
+              ‘{searchQuery}’ 검색 결과
+              {searching ? "" : ` ${searchResults.length}건`}
+            </h3>
+            {searching ? (
+              <p className="text-gray-400 text-sm">검색 중…</p>
+            ) : searchResults.length === 0 ? (
+              <p className="text-gray-400 text-sm">결과가 없습니다.</p>
+            ) : (
+              <ul className="space-y-1">
+                {searchResults.map((r) => {
+                  const editable =
+                    !r.isHoliday &&
+                    writableCalendars.some((c) => c.id === r.calendarId);
+                  const inner = (
+                    <>
+                      <span className="text-xs text-gray-400 shrink-0 w-24">
+                        {formatResultDate(r.start)}
+                      </span>
+                      <span
+                        className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: r.isHoliday ? HOLIDAY_COLOR : r.color,
+                        }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0">
+                        <span className="text-sm leading-snug">{r.summary}</span>
+                        <span className="block text-xs text-gray-400 truncate">
+                          {r.calendarName}
+                          {r.location ? ` · ${r.location}` : ""}
+                        </span>
+                      </span>
+                    </>
+                  );
+                  return (
+                    <li key={r.id}>
+                      {editable ? (
+                        <button
+                          onClick={() => openEdit(r)}
+                          className="w-full flex items-start gap-2 rounded-lg p-1.5 text-left hover:bg-gray-50"
+                        >
+                          {inner}
+                        </button>
+                      ) : (
+                        <div className="flex items-start gap-2 p-1.5">{inner}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <>
         {/* 카테고리 탭 (한 번에 하나만 선택) */}
         {categoryCalendars.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4">
@@ -517,6 +650,8 @@ export default function CalendarMonth() {
             </>
           )}
         </div>
+          </>
+        )}
       </Card>
 
       {modal && (
@@ -701,6 +836,26 @@ function formatTime(start: string): string {
   const d = new Date(start);
   if (isNaN(d.getTime())) return "";
   return d.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
+}
+
+function formatResultDate(start: string): string {
+  if (isAllDay(start)) {
+    const [y, m, d] = start.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString("ko-KR", {
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+    });
+  }
+  const dt = new Date(start);
+  if (isNaN(dt.getTime())) return "";
+  return dt.toLocaleString("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatDayHeading(key: string): string {
