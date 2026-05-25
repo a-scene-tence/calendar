@@ -131,6 +131,18 @@ export default function BudgetCard() {
 
   const monthLabel = `${new Date().getMonth() + 1}월`;
 
+  // 이번 달 카테고리별 지출 TOP 5
+  const catTotals = new Map<string, number>();
+  for (const t of transactions) {
+    if (t.kind !== "expense") continue;
+    const name = t.categoryName || "미분류";
+    catTotals.set(name, (catTotals.get(name) ?? 0) + t.amount);
+  }
+  const topCategories = [...catTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const topMax = topCategories[0]?.[1] ?? 0;
+
   return (
     <>
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -224,6 +236,32 @@ export default function BudgetCard() {
                 />
               </div>
             </div>
+
+            {topCategories.length > 0 && (
+              <div className="mt-4">
+                <h3 className="text-xs text-gray-400 mb-1.5">카테고리별 지출</h3>
+                <ul className="space-y-1.5">
+                  {topCategories.map(([name, amt]) => (
+                    <li key={name} className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600 w-14 shrink-0 truncate">
+                        {name}
+                      </span>
+                      <span className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <span
+                          className="block h-full bg-red-400 rounded-full"
+                          style={{
+                            width: `${topMax > 0 ? (amt / topMax) * 100 : 0}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="text-xs text-gray-500 w-20 text-right shrink-0">
+                        {formatKRW(amt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="mt-4">
               <h3 className="text-xs text-gray-400 mb-1">최근 거래</h3>
