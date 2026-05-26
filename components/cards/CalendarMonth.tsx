@@ -5,6 +5,7 @@ import EventFormModal, {
   EventInitial,
   WritableCalendar,
 } from "@/components/EventFormModal";
+import CalendarManageModal from "@/components/CalendarManageModal";
 
 type CalendarEvent = {
   id: string;
@@ -73,7 +74,9 @@ export default function CalendarMonth() {
     month: today.getMonth() + 1, // 1-12
   });
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState<"single" | "multi">("single");
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  const [manageOpen, setManageOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(dateKey(today));
   const [status, setStatus] = useState<Status>("loading");
   const [modal, setModal] = useState<
@@ -124,42 +127,55 @@ export default function CalendarMonth() {
     [categoryCalendars]
   );
 
-  // activeId 유효성 보장(없거나 사라지면 첫 탭으로)
+  // 칩 표시 순서: 카테고리(정렬됨) → 공휴일
+  const chipCalendars = useMemo(
+    () => [...categoryCalendars, ...holidayCalendars],
+    [categoryCalendars, holidayCalendars]
+  );
+
+  // 관리 가능한(소유) 카테고리
+  const ownerCategories = useMemo(
+    () =>
+      categoryCalendars
+        .filter((c) => c.accessRole === "owner")
+        .map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    [categoryCalendars]
+  );
+
+  // visibleIds 유효성 보장 + 최초 기본값(첫 카테고리 + 공휴일 전부)
   useEffect(() => {
-    if (categoryCalendars.length === 0) return;
-    if (!activeId || !categoryCalendars.some((c) => c.id === activeId)) {
-      setActiveId(categoryCalendars[0].id);
-    }
-  }, [categoryCalendars, activeId]);
+    if (calendars.length === 0) return;
+    setVisibleIds((prev) => {
+      const valid = new Set(
+        [...prev].filter((id) => calendars.some((c) => c.id === id))
+      );
+      if (valid.size === 0) {
+        if (categoryCalendars[0]) valid.add(categoryCalendars[0].id);
+        for (const h of holidayCalendars) valid.add(h.id);
+      }
+      return valid;
+    });
+  }, [calendars, categoryCalendars, holidayCalendars]);
 
-  const activeCal = categoryCalendars.find((c) => c.id === activeId) ?? null;
+  const visibleCalendars = useMemo(
+    () => calendars.filter((c) => visibleIds.has(c.id)),
+    [calendars, visibleIds]
+  );
 
-  // 활성 탭 일정 + 공휴일을 통합해 전역 레인 배정(주 경계 넘어도 같은 레인 유지)
+  // 보이는 모든 캘린더의 일정을 통합해 전역 레인 배정(주 경계 넘어도 같은 레인 유지)
   const items = useMemo<CalItem[]>(() => {
     const raw: Omit<CalItem, "lane">[] = [];
-    if (activeCal) {
-      for (const event of activeCal.events) {
-        const { startKey, endKey } = eventRange(event);
-        raw.push({
-          event,
-          startKey,
-          endKey,
-          isHoliday: false,
-          allDay: isAllDay(event.start),
-          color: activeCal.color,
-        });
-      }
-    }
-    for (const cal of holidayCalendars) {
+    for (const cal of visibleCalendars) {
+      const color = cal.isHoliday ? HOLIDAY_COLOR : cal.color;
       for (const event of cal.events) {
         const { startKey, endKey } = eventRange(event);
         raw.push({
           event,
           startKey,
           endKey,
-          isHoliday: true,
+          isHoliday: !!cal.isHoliday,
           allDay: isAllDay(event.start),
-          color: HOLIDAY_COLOR,
+          color,
         });
       }
     }
@@ -177,7 +193,33 @@ export default function CalendarMonth() {
       laneEnds[lane] = it.endKey;
       return { ...it, lane };
     });
-  }, [activeCal, holidayCalendars]);
+  }, [visibleCalendars]);
+
+  function toggleChip(cal: Calendar) {
+    setVisibleIds((prev) => {
+      const next = new Set(prev);
+      if (selectMode === "single" && !cal.isHoliday) {
+        for (const c of categoryCalendars) next.delete(c.id);
+        next.add(cal.id);
+      } else if (next.has(cal.id)) {
+        next.delete(cal.id);
+      } else {
+        next.add(cal.id);
+      }
+      return next;
+    });
+  }
+  function changeMode(mode: "single" | "multi") {
+    setSelectMode(mode);
+    if (mode === "single") {
+      setVisibleIds((prev) => {
+        const next = new Set(prev);
+        const visCats = categoryCalendars.filter((c) => next.has(c.id));
+        for (const c of visCats.slice(1)) next.delete(c.id);
+        return next;
+      });
+    }
+  }
 
   const gridDays = useMemo(
     () => buildMonthGrid(viewDate.year, viewDate.month),
@@ -213,10 +255,8 @@ export default function CalendarMonth() {
   }
 
   function defaultCalId(): string {
-    if (activeCal && writableCalendars.some((c) => c.id === activeCal.id)) {
-      return activeCal.id;
-    }
-    return writableCalendars[0]?.id ?? "";
+    const visibleWritable = writableCalendars.find((c) => visibleIds.has(c.id));
+    return visibleWritable?.id ?? writableCalendars[0]?.id ?? "";
   }
   function openCreate(dayKey: string | null) {
     setModal({
@@ -295,24 +335,55 @@ export default function CalendarMonth() {
     .map((it) => it.event);
   const selectedEvents = selectedItems
     .filter((it) => !it.isHoliday)
-    .map((it) => it.event)
     .sort((a, b) => {
-      const aAll = isAllDay(a.start);
-      const bAll = isAllDay(b.start);
+      const aAll = isAllDay(a.event.start);
+      const bAll = isAllDay(b.event.start);
       if (aAll !== bAll) return aAll ? -1 : 1; // 종일/다일 먼저
-      return a.start.localeCompare(b.start);
+      return a.event.start.localeCompare(b.event.start);
     });
   const canWrite = writableCalendars.length > 0;
 
   return (
     <>
       <Card>
-        {/* 헤더: 월 이동 */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold flex items-center gap-2">
-            <span aria-hidden>📅</span> {viewDate.year}년 {viewDate.month}월
-          </h2>
-          <div className="flex items-center gap-1">
+        {/* 헤더: 년/월 드롭다운 이동 */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="flex items-center gap-1.5">
+            <span aria-hidden>📅</span>
+            <select
+              value={viewDate.year}
+              onChange={(e) => {
+                setSelectedDay(null);
+                setViewDate((v) => ({ ...v, year: Number(e.target.value) }));
+              }}
+              className="rounded-lg border border-gray-200 px-2 py-1 text-sm font-semibold bg-white"
+              aria-label="연도 선택"
+            >
+              {Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i).map(
+                (y) => (
+                  <option key={y} value={y}>
+                    {y}년
+                  </option>
+                )
+              )}
+            </select>
+            <select
+              value={viewDate.month}
+              onChange={(e) => {
+                setSelectedDay(null);
+                setViewDate((v) => ({ ...v, month: Number(e.target.value) }));
+              }}
+              className="rounded-lg border border-gray-200 px-2 py-1 text-sm font-semibold bg-white"
+              aria-label="월 선택"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {m}월
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-1 ml-auto">
             {canWrite && (
               <button
                 onClick={() => openCreate(selectedDay)}
@@ -352,7 +423,7 @@ export default function CalendarMonth() {
             onKeyDown={(e) => {
               if (e.key === "Enter") runSearch(searchInput);
             }}
-            placeholder="일정 검색 (제목·메모, ±6개월)"
+            placeholder="일정 검색 (제목·메모, 전체 기간)"
             className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm"
           />
           <button
@@ -429,34 +500,63 @@ export default function CalendarMonth() {
           </div>
         ) : (
           <>
-        {/* 카테고리 탭 (한 번에 하나만 선택) */}
-        {categoryCalendars.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {categoryCalendars.map((cal) => {
-              const active = cal.id === activeId;
-              return (
-                <button
-                  key={cal.id}
-                  onClick={() => setActiveId(cal.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                    active
-                      ? "border-transparent text-white"
-                      : "border-gray-200 bg-white text-gray-500"
-                  }`}
-                  style={active ? { backgroundColor: cal.color } : undefined}
-                  aria-pressed={active}
-                >
-                  {!active && (
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: cal.color }}
-                      aria-hidden
-                    />
-                  )}
-                  <span className="truncate max-w-[100px]">{cal.name}</span>
-                </button>
-              );
-            })}
+        {/* 카테고리: 단일/다중 모드 + 표시 토글 + 관리 */}
+        {chipCalendars.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                {(["single", "multi"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => changeMode(m)}
+                    className={`px-2.5 py-1 ${
+                      selectMode === m
+                        ? "bg-sky-500 text-white"
+                        : "bg-white text-gray-500"
+                    }`}
+                    aria-pressed={selectMode === m}
+                  >
+                    {m === "single" ? "단일" : "다중"}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setManageOpen(true)}
+                className="ml-auto px-2.5 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-xs font-medium"
+              >
+                카테고리 관리
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {chipCalendars.map((cal) => {
+                const on = visibleIds.has(cal.id);
+                const color = cal.isHoliday ? HOLIDAY_COLOR : cal.color;
+                return (
+                  <button
+                    key={cal.id}
+                    onClick={() => toggleChip(cal)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                      on ? "border-transparent" : "border-gray-200 bg-white text-gray-500"
+                    }`}
+                    style={
+                      on
+                        ? { backgroundColor: color, color: barTextColor(color) }
+                        : undefined
+                    }
+                    aria-pressed={on}
+                  >
+                    {!on && (
+                      <span
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: color }}
+                        aria-hidden
+                      />
+                    )}
+                    <span className="truncate max-w-[100px]">{cal.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -620,25 +720,27 @@ export default function CalendarMonth() {
                       <span className="min-w-0 truncate">{h.summary}</span>
                     </li>
                   ))}
-                  {selectedEvents.map((event) => (
-                    <li key={event.id}>
+                  {selectedEvents.map((it) => (
+                    <li key={it.event.id}>
                       <button
-                        onClick={() => openEdit(event)}
+                        onClick={() => openEdit(it.event)}
                         className="w-full flex items-start gap-2 rounded-lg p-1.5 text-left hover:bg-gray-50"
                       >
                         <span className="text-xs text-gray-400 mt-0.5 shrink-0 w-12">
-                          {formatTime(event.start)}
+                          {formatTime(it.event.start)}
                         </span>
                         <span
                           className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: activeCal?.color ?? "#9ca3af" }}
+                          style={{ backgroundColor: it.color }}
                           aria-hidden
                         />
                         <span className="min-w-0">
-                          <span className="text-sm leading-snug">{event.summary}</span>
-                          {event.location && (
+                          <span className="text-sm leading-snug">
+                            {it.event.summary}
+                          </span>
+                          {it.event.location && (
                             <span className="block text-xs text-gray-400 truncate">
-                              {event.location}
+                              {it.event.location}
                             </span>
                           )}
                         </span>
@@ -661,6 +763,14 @@ export default function CalendarMonth() {
           calendars={writableCalendars}
           onClose={() => setModal(null)}
           onSaved={onSaved}
+        />
+      )}
+
+      {manageOpen && (
+        <CalendarManageModal
+          categories={ownerCategories}
+          onClose={() => setManageOpen(false)}
+          onChanged={load}
         />
       )}
     </>

@@ -50,12 +50,9 @@ export async function GET(request: NextRequest) {
   let timeMin: string;
   let timeMax: string;
   if (q) {
-    const lo = new Date(now);
-    lo.setMonth(lo.getMonth() - 6);
-    const hi = new Date(now);
-    hi.setMonth(hi.getMonth() + 6);
-    timeMin = lo.toISOString();
-    timeMax = hi.toISOString();
+    // 전체 기간 검색
+    timeMin = "2000-01-01T00:00:00Z";
+    timeMax = "2100-01-01T00:00:00Z";
   } else {
     const year = Number(params.get("year")) || now.getFullYear();
     const month = Number(params.get("month")) || now.getMonth() + 1; // 1-12
@@ -117,7 +114,7 @@ export async function GET(request: NextRequest) {
       q,
       singleEvents: "true",
       orderBy: "startTime",
-      maxResults: "50",
+      maxResults: "250",
     });
     const perCal = await Promise.all(
       calendars.map(async (cal) => {
