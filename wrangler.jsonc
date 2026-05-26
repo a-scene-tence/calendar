@@ -1,6 +1,10 @@
 {
   "name": "personal-dashboard",
-  "pages_build_output_dir": ".open-next/cloudflare",
+  "main": ".open-next/worker.js",
   "compatibility_date": "2025-01-01",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  }
 }
