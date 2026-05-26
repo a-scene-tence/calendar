@@ -5,8 +5,12 @@
 
 ## 프로젝트 개요
 
-개인 대시보드 — 가계부·캘린더 등 개인 정보를 하나의 화면에서 본다. 모바일 우선, 태블릿/PC 대응.
-스택: **Next.js (App Router) + Cloudflare Pages/Workers + PWA + Supabase + Google Calendar API**.
+캘린더 앱 — Google 캘린더 기반 개인 일정 관리(월 그리드·다일 막대·검색·일정 추가/수정). 모바일 우선,
+태블릿/PC 대응. 스택: **Next.js (App Router) + Cloudflare Pages/Workers + PWA + Supabase(인증/구글
+토큰) + Google Calendar API**.
+
+> 가계부 기능은 제거됨(2026-05: 캘린더 전용 앱으로 전환). `spec.md`의 가계부 관련 내용은 더 이상
+> 유효하지 않음. Supabase는 인증과 Google refresh_token 저장(`user_tokens`)에만 사용.
 
 ## 작업 규칙
 

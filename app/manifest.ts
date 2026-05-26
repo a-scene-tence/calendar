@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "개인 대시보드",
-    short_name: "대시보드",
-    description: "개인 일정·가계부 통합 대시보드",
+    name: "캘린더",
+    short_name: "캘린더",
+    description: "Google 캘린더 기반 개인 일정 앱",
     start_url: "/",
     display: "standalone",
     background_color: "#f9fafb",

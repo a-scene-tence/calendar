@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "개인 대시보드",
-  description: "개인 일정·가계부 통합 대시보드",
+  title: "캘린더",
+  description: "Google 캘린더 기반 개인 일정 앱",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "대시보드",
+    title: "캘린더",
   },
 };
 

@@ -24,7 +24,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-        <h1 className="text-xl font-bold mb-2">개인 대시보드</h1>
+        <h1 className="text-xl font-bold mb-2">캘린더</h1>
         {supabase ? (
           <>
             <p className="text-gray-500 text-sm mb-6">
