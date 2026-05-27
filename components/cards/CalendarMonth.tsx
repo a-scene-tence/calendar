@@ -6,27 +6,14 @@ import EventFormModal, {
   WritableCalendar,
 } from "@/components/EventFormModal";
 import CalendarManageModal from "@/components/CalendarManageModal";
+import { loadCalendars, searchEvents } from "@/lib/local-store";
+import type {
+  Calendar,
+  CalendarEvent,
+  SearchResult,
+} from "@/lib/calendar-types";
 
-type CalendarEvent = {
-  id: string;
-  eventId: string;
-  calendarId: string;
-  summary: string;
-  start: string;
-  end?: string;
-  location?: string;
-};
-
-type Calendar = {
-  id: string;
-  name: string;
-  color: string;
-  accessRole?: string;
-  isHoliday?: boolean;
-  events: CalendarEvent[];
-};
-
-type Status = "loading" | "unauthorized" | "error" | "ok";
+type Status = "loading" | "error" | "ok";
 
 // 레인 배정된 캘린더 아이템 (그리드 막대 렌더용)
 type CalItem = {
@@ -46,20 +33,6 @@ type Segment = {
   span: number; // 칸 수
   roundLeft: boolean; // 실제 시작이 이 주 안 → 좌측 둥글게
   roundRight: boolean; // 실제 종료가 이 주 안 → 우측 둥글게
-};
-
-// 검색 결과(여러 달·전 캘린더)
-type SearchResult = {
-  id: string;
-  eventId: string;
-  calendarId: string;
-  calendarName: string;
-  color: string;
-  isHoliday: boolean;
-  summary: string;
-  start: string;
-  end?: string;
-  location?: string;
 };
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -88,17 +61,13 @@ export default function CalendarMonth() {
   const [searching, setSearching] = useState(false);
 
   const load = useCallback(() => {
-    setStatus("loading");
-    return fetch(`/api/calendar?year=${viewDate.year}&month=${viewDate.month}`)
-      .then(async (r) => {
-        if (r.status === 401) return setStatus("unauthorized");
-        if (!r.ok) return setStatus("error");
-        const data = await r.json();
-        setCalendars(data.calendars ?? []);
-        setStatus("ok");
-      })
-      .catch(() => setStatus("error"));
-  }, [viewDate.year, viewDate.month]);
+    try {
+      setCalendars(loadCalendars());
+      setStatus("ok");
+    } catch {
+      setStatus("error");
+    }
+  }, []);
 
   useEffect(() => {
     load();
@@ -119,25 +88,16 @@ export default function CalendarMonth() {
     [calendars]
   );
 
+  // 로컬 저장이라 모든 카테고리가 쓰기/관리 가능
   const writableCalendars: WritableCalendar[] = useMemo(
-    () =>
-      categoryCalendars
-        .filter((c) => c.accessRole === "owner" || c.accessRole === "writer")
-        .map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    () => categoryCalendars.map((c) => ({ id: c.id, name: c.name, color: c.color })),
     [categoryCalendars]
   );
 
   // 칩: 카테고리만(공휴일은 토글 없이 항상 표시)
   const chipCalendars = categoryCalendars;
 
-  // 관리 가능한(소유) 카테고리
-  const ownerCategories = useMemo(
-    () =>
-      categoryCalendars
-        .filter((c) => c.accessRole === "owner")
-        .map((c) => ({ id: c.id, name: c.name, color: c.color })),
-    [categoryCalendars]
-  );
+  const ownerCategories = writableCalendars;
 
   // visibleIds(카테고리만) 유효성 보장 + 최초 기본값(첫 카테고리)
   useEffect(() => {
@@ -273,7 +233,7 @@ export default function CalendarMonth() {
     if (searchQuery) runSearch(searchQuery);
   }
 
-  async function runSearch(qStr: string) {
+  function runSearch(qStr: string) {
     const q = qStr.trim();
     if (!q) {
       clearSearch();
@@ -282,13 +242,7 @@ export default function CalendarMonth() {
     setSearchQuery(q);
     setSearching(true);
     try {
-      const r = await fetch(`/api/calendar?q=${encodeURIComponent(q)}`);
-      if (r.ok) {
-        const d = await r.json();
-        setSearchResults(d.results ?? []);
-      } else {
-        setSearchResults([]);
-      }
+      setSearchResults(searchEvents(q));
     } catch {
       setSearchResults([]);
     } finally {
@@ -302,19 +256,6 @@ export default function CalendarMonth() {
     setSearching(false);
   }
 
-  if (status === "unauthorized") {
-    return (
-      <Card>
-        <p className="text-amber-600 text-sm">
-          세션이 만료되었습니다(Google 토큰 만료).{" "}
-          <a href="/login" className="underline font-medium">
-            다시 로그인
-          </a>{" "}
-          후 이용하세요.
-        </p>
-      </Card>
-    );
-  }
   if (status === "error") {
     return (
       <Card>

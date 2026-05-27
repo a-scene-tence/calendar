@@ -5,12 +5,14 @@
 
 ## 프로젝트 개요
 
-캘린더 앱 — Google 캘린더 기반 개인 일정 관리(월 그리드·다일 막대·검색·일정 추가/수정). 모바일 우선,
-태블릿/PC 대응. 스택: **Next.js (App Router) + Cloudflare Pages/Workers + PWA + Supabase(인증/구글
-토큰) + Google Calendar API**.
+**로컬 우선(local-first) 캘린더 앱** — 외부 로그인/서버 없이 기기 localStorage에 일정 저장·관리
+(월 그리드·다일 막대·검색·추가/수정). 외부 캘린더 백업 .ics 가져오기/내보내기, 한국 공휴일 내장.
+모바일 우선, 태블릿/PC 대응. 스택: **Next.js (App Router, 정적) + Cloudflare Workers(정적 서빙)
++ PWA**. 서버 API·인증 없음.
 
-> 가계부 기능은 제거됨(2026-05: 캘린더 전용 앱으로 전환). `spec.md`의 가계부 관련 내용은 더 이상
-> 유효하지 않음. Supabase는 인증과 Google refresh_token 저장(`user_tokens`)에만 사용.
+> 이력: 가계부 기능 제거(2026-05) → 가계부 기획 무효. Google 캘린더 동기화 + Supabase 인증 방식도
+> 제거(2026-05: 로컬 우선으로 전환). 데이터는 `lib/local-store.ts`가 localStorage로 관리하고,
+> ICS는 `lib/ics.ts`, 공휴일은 `lib/holidays.ts`(내장)에서 처리.
 
 ## 작업 규칙
 
@@ -49,11 +51,13 @@
 | 2026-05-24 | `npm run build` 타입 에러: `cookiesToSet implicitly has 'any'` (`lib/supabase/*.ts`) | `@supabase/ssr` setAll 콜백 파라미터 타입 미지정 | 파라미터에 `{name:string;value:string;options:Record<string,unknown>}[]` 명시 | strict 모드에서 콜백 인자는 명시적 타입 부여 |
 | 2026-05-24 | 캘린더 월 그리드에서 날짜 숫자가 일정 막대와 겹쳐 보임 | `<button>`은 단일 내용을 **세로 중앙 정렬**해서 `pt-1`로 상단 고정이 안 됨 → 숫자가 셀 중앙(~31px)에 위치, top-6 막대와 겹침 | 날짜칸 버튼에 `flex flex-col items-center` 부여해 숫자를 상단 고정 | 버튼 내부 내용을 상단 정렬하려면 `flex flex-col` 명시(버튼 기본 세로중앙정렬 주의) |
 | 2026-05-26 | Cloudflare 배포 불가(`opennextjs-cloudflare build`/`deploy`) | `open-next.config.ts` 누락 + `wrangler.jsonc`가 Pages용(`pages_build_output_dir`)이라 어댑터 v1 Workers 모델과 불일치 | `open-next.config.ts` 추가 + `wrangler.jsonc`를 `main`+`assets`(Workers)로 교체 | `@opennextjs/cloudflare` v1은 Workers 배포(`wrangler deploy`) + `open-next.config.ts` 필수. Pages 설정 사용 금지 |
+| 2026-05-27 | 로컬 우선 전환 시 "API 라우트에서 localStorage 읽기" 설계 오류 가능성 | localStorage는 **브라우저 전용** — 서버(Workers) API 라우트에서 접근 불가 | 데이터 로직을 클라이언트 스토어(`lib/local-store.ts`)로 옮기고 API 라우트 전체 삭제 | 로컬 저장은 클라이언트 컴포넌트/모듈에서만. 서버 라우트로 우회 금지 |
 
 ### 알려진 주의점 (시작 전 메모)
-- **Next.js on Cloudflare**: Node 전용 API 사용 시 edge 런타임에서 실패할 수 있음.
-  `@opennextjs/cloudflare` 호환성/런타임 제약 확인 필요.
-- **Supabase RLS**: 테이블 생성 후 RLS 정책 누락 시 데이터가 안 보이거나 전체 노출될 수 있음.
-  테이블마다 `user_id = auth.uid()` 정책을 반드시 설정.
-- **localStorage**: origin·기기 종속. 크로스도메인/다기기 동기화 불가 → 공유 데이터는 Supabase 사용.
-- **삼성 캘린더**: 공개 API 없음. 구글 캘린더 동기화 경유로만 읽음(`spec.md` §7).
+- **로컬 저장 한계**: localStorage는 origin·기기 종속, 캐시 삭제 시 소실, ~5MB 한계.
+  → 백업은 ICS 내보내기로. 데이터 접근은 항상 클라이언트(`lib/local-store.ts`)에서.
+- **ICS 가져오기**: 반복(RRULE)은 첫 발생만 단일 일정으로 가져옴. 종일 DTEND는 exclusive(다음 날).
+- **공휴일**: `lib/holidays.ts`(2024–2027, 내장·읽기전용). 로드 시 주입하고 저장하지 않음. 음력/대체
+  공휴일은 best-effort이므로 부정확하면 표를 직접 보정.
+- **외부 캘린더**: 실시간 동기화 없음. 구글/삼성 등에서 .ics로 내보낸 뒤 업로드(`spec.md` §7).
+- **Next.js on Cloudflare**: 정적 출력 + Workers 정적 서빙. Node 전용 API 주의.

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "캘린더",
-  description: "Google 캘린더 기반 개인 일정 앱",
+  description: "기기에 저장하는 개인 일정 앱 (ICS 가져오기/내보내기)",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
