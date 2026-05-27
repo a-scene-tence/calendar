@@ -1,13 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
-import {
-  createCalendar,
-  updateCalendar,
-  deleteCalendar,
-  importIcs,
-  exportIcs,
-} from "@/lib/local-store";
+import { useState } from "react";
 
 export type ManageCalendar = { id: string; name: string; color: string };
 
@@ -31,23 +24,54 @@ export default function CalendarManageModal({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState(PRESET_COLORS[0]);
-  const [importTarget, setImportTarget] = useState(categories[0]?.id ?? "");
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  function add() {
-    if (!newName.trim()) return setError("이름을 입력하세요.");
+  async function call(
+    method: "POST" | "PATCH" | "DELETE",
+    body: Record<string, unknown>
+  ): Promise<boolean> {
+    setBusy(true);
     setError(null);
-    createCalendar(newName.trim(), newColor);
-    setNewName("");
-    setNewColor(PRESET_COLORS[0]);
-    onChanged();
+    try {
+      const res = await fetch("/api/calendar/calendars", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 401) {
+        setError("세션 만료. 다시 로그인하세요.");
+        return false;
+      }
+      if (!res.ok) {
+        setError("요청에 실패했습니다.");
+        return false;
+      }
+      onChanged();
+      return true;
+    } catch {
+      setError("오류가 발생했습니다.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function add() {
+    if (!newName.trim()) return setError("이름을 입력하세요.");
+    const ok = await call("POST", {
+      summary: newName.trim(),
+      backgroundColor: newColor,
+    });
+    if (ok) {
+      setNewName("");
+      setNewColor(PRESET_COLORS[0]);
+    }
   }
 
   function startEdit(c: ManageCalendar) {
@@ -55,53 +79,24 @@ export default function CalendarManageModal({
     setEditName(c.name);
     setEditColor(c.color);
   }
-  function saveEdit() {
+  async function saveEdit() {
     if (!editName.trim()) return setError("이름을 입력하세요.");
-    setError(null);
-    updateCalendar(editingId!, { name: editName.trim(), color: editColor });
-    setEditingId(null);
-    onChanged();
+    const ok = await call("PATCH", {
+      calendarId: editingId,
+      summary: editName.trim(),
+      backgroundColor: editColor,
+    });
+    if (ok) setEditingId(null);
   }
 
-  function remove(c: ManageCalendar) {
+  async function remove(c: ManageCalendar) {
     if (
       !confirm(
-        `‘${c.name}’ 카테고리와 그 안의 모든 일정이 이 기기에서 삭제됩니다. 계속할까요?`
+        `‘${c.name}’ 캘린더와 그 안의 모든 일정이 Google에서 영구 삭제됩니다. 계속할까요?`
       )
     )
       return;
-    setError(null);
-    deleteCalendar(c.id);
-    onChanged();
-  }
-
-  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!importTarget) return setError("가져올 카테고리를 선택하세요.");
-    setError(null);
-    setInfo(null);
-    try {
-      const text = await file.text();
-      const n = importIcs(text, importTarget);
-      setInfo(`${n}개 일정을 가져왔습니다.`);
-      onChanged();
-    } catch {
-      setError("ICS 파일을 읽지 못했습니다.");
-    }
-  }
-
-  function doExport() {
-    setError(null);
-    const ics = exportIcs();
-    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `calendar-${new Date().toISOString().slice(0, 10)}.ics`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await call("DELETE", { calendarId: c.id });
   }
 
   return (
@@ -128,7 +123,8 @@ export default function CalendarManageModal({
             />
             <button
               onClick={add}
-              className="rounded-lg bg-sky-500 text-white px-3 py-2 text-sm font-medium shrink-0 hover:bg-sky-600"
+              disabled={busy}
+              className="rounded-lg bg-sky-500 text-white px-3 py-2 text-sm font-medium shrink-0 hover:bg-sky-600 disabled:opacity-50"
             >
               추가
             </button>
@@ -154,12 +150,14 @@ export default function CalendarManageModal({
                   />
                   <button
                     onClick={saveEdit}
-                    className="text-sky-600 text-sm font-medium shrink-0"
+                    disabled={busy}
+                    className="text-sky-600 text-sm font-medium shrink-0 disabled:opacity-50"
                   >
                     저장
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
+                    disabled={busy}
                     className="text-gray-500 text-sm shrink-0"
                   >
                     취소
@@ -183,7 +181,8 @@ export default function CalendarManageModal({
                   </button>
                   <button
                     onClick={() => remove(c)}
-                    className="text-red-500 text-sm shrink-0 hover:text-red-600"
+                    disabled={busy}
+                    className="text-red-500 text-sm shrink-0 hover:text-red-600 disabled:opacity-50"
                   >
                     삭제
                   </button>
@@ -193,46 +192,6 @@ export default function CalendarManageModal({
           </ul>
         )}
 
-        {/* ICS 가져오기 / 내보내기 */}
-        <div className="rounded-lg border border-gray-200 p-3 mt-4">
-          <p className="text-xs text-gray-500 mb-2">ICS 파일 (백업·가져오기)</p>
-          <div className="flex items-center gap-2 mb-2">
-            <select
-              value={importTarget}
-              onChange={(e) => setImportTarget(e.target.value)}
-              className="flex-1 min-w-0 rounded-lg border border-gray-200 px-2 py-2 text-sm bg-white"
-              aria-label="가져올 카테고리"
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={!importTarget}
-              className="rounded-lg border border-gray-200 text-gray-700 px-3 py-2 text-sm font-medium shrink-0 hover:bg-gray-50 disabled:opacity-50"
-            >
-              가져오기
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".ics,text/calendar"
-              onChange={onPickFile}
-              className="hidden"
-            />
-          </div>
-          <button
-            onClick={doExport}
-            className="w-full rounded-lg border border-gray-200 text-gray-700 py-2 text-sm font-medium hover:bg-gray-50"
-          >
-            전체 일정 내보내기 (.ics)
-          </button>
-        </div>
-
-        {info && <p className="text-emerald-600 text-sm mt-3">{info}</p>}
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
 
         <div className="mt-5">

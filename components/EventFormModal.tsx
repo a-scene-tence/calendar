@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createEvent, updateEvent, deleteEvent } from "@/lib/local-store";
-import type { EventInput } from "@/lib/calendar-types";
 
 export type WritableCalendar = { id: string; name: string; color: string };
 
@@ -43,47 +41,56 @@ export default function EventFormModal({
   const [endTime, setEndTime] = useState(initial.endTime);
   const [location, setLocation] = useState(initial.location);
   const [description, setDescription] = useState(initial.description);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function save() {
+  async function save() {
     if (!summary.trim()) return setError("제목을 입력하세요.");
     if (!calendarId) return setError("캘린더를 선택하세요.");
+    setBusy(true);
     setError(null);
 
-    const input: EventInput = {
+    const payload: Record<string, unknown> = {
       calendarId,
       summary: summary.trim(),
       allDay,
       location: location.trim(),
       description: description.trim(),
-      ...(allDay
-        ? { date, endDate: endDate || date }
-        : {
-            startDateTime: `${date}T${startTime}:00`,
-            endDateTime: `${date}T${endTime}:00`,
-          }),
-      ...(mode === "edit" ? { eventId: initial.eventId } : {}),
     };
-
-    try {
-      if (mode === "edit") updateEvent(input);
-      else createEvent(input);
-      onSaved();
-    } catch {
-      setError("저장에 실패했습니다.");
+    if (allDay) {
+      payload.date = date;
+      payload.endDate = endDate || date;
+    } else {
+      payload.startDateTime = `${date}T${startTime}:00`;
+      payload.endDateTime = `${date}T${endTime}:00`;
     }
+    if (mode === "edit") payload.eventId = initial.eventId;
+
+    const res = await fetch("/api/calendar/events", {
+      method: mode === "edit" ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setBusy(false);
+    if (res.status === 401) return setError("세션 만료. 다시 로그인하세요.");
+    if (!res.ok) return setError("저장에 실패했습니다.");
+    onSaved();
   }
 
-  function remove() {
+  async function remove() {
     if (!initial.eventId) return;
     if (!confirm("이 일정을 삭제할까요?")) return;
+    setBusy(true);
     setError(null);
-    try {
-      deleteEvent(calendarId, initial.eventId);
-      onSaved();
-    } catch {
-      setError("삭제에 실패했습니다.");
-    }
+    const res = await fetch("/api/calendar/events", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ calendarId, eventId: initial.eventId }),
+    });
+    setBusy(false);
+    if (res.status === 401) return setError("세션 만료. 다시 로그인하세요.");
+    if (!res.ok) return setError("삭제에 실패했습니다.");
+    onSaved();
   }
 
   return (
@@ -198,20 +205,23 @@ export default function EventFormModal({
         <div className="flex items-center gap-2 mt-5">
           <button
             onClick={save}
-            className="flex-1 rounded-lg bg-sky-500 text-white py-2.5 text-sm font-medium hover:bg-sky-600"
+            disabled={busy}
+            className="flex-1 rounded-lg bg-sky-500 text-white py-2.5 text-sm font-medium hover:bg-sky-600 disabled:opacity-50"
           >
-            저장
+            {busy ? "저장 중..." : "저장"}
           </button>
           {mode === "edit" && (
             <button
               onClick={remove}
-              className="rounded-lg border border-red-200 text-red-500 px-4 py-2.5 text-sm hover:bg-red-50"
+              disabled={busy}
+              className="rounded-lg border border-red-200 text-red-500 px-4 py-2.5 text-sm hover:bg-red-50 disabled:opacity-50"
             >
               삭제
             </button>
           )}
           <button
             onClick={onClose}
+            disabled={busy}
             className="rounded-lg border border-gray-200 text-gray-600 px-4 py-2.5 text-sm hover:bg-gray-50"
           >
             취소
