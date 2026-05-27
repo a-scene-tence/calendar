@@ -127,11 +127,8 @@ export default function CalendarMonth() {
     [categoryCalendars]
   );
 
-  // 칩 표시 순서: 카테고리(정렬됨) → 공휴일
-  const chipCalendars = useMemo(
-    () => [...categoryCalendars, ...holidayCalendars],
-    [categoryCalendars, holidayCalendars]
-  );
+  // 칩: 카테고리만(공휴일은 토글 없이 항상 표시)
+  const chipCalendars = categoryCalendars;
 
   // 관리 가능한(소유) 카테고리
   const ownerCategories = useMemo(
@@ -142,24 +139,27 @@ export default function CalendarMonth() {
     [categoryCalendars]
   );
 
-  // visibleIds 유효성 보장 + 최초 기본값(첫 카테고리 + 공휴일 전부)
+  // visibleIds(카테고리만) 유효성 보장 + 최초 기본값(첫 카테고리)
   useEffect(() => {
-    if (calendars.length === 0) return;
+    if (categoryCalendars.length === 0) return;
     setVisibleIds((prev) => {
       const valid = new Set(
-        [...prev].filter((id) => calendars.some((c) => c.id === id))
+        [...prev].filter((id) => categoryCalendars.some((c) => c.id === id))
       );
-      if (valid.size === 0) {
-        if (categoryCalendars[0]) valid.add(categoryCalendars[0].id);
-        for (const h of holidayCalendars) valid.add(h.id);
+      if (valid.size === 0 && categoryCalendars[0]) {
+        valid.add(categoryCalendars[0].id);
       }
       return valid;
     });
-  }, [calendars, categoryCalendars, holidayCalendars]);
+  }, [categoryCalendars]);
 
+  // 보이는 카테고리 + 모든 공휴일(공휴일은 항상 표시)
   const visibleCalendars = useMemo(
-    () => calendars.filter((c) => visibleIds.has(c.id)),
-    [calendars, visibleIds]
+    () => [
+      ...categoryCalendars.filter((c) => visibleIds.has(c.id)),
+      ...holidayCalendars,
+    ],
+    [categoryCalendars, holidayCalendars, visibleIds]
   );
 
   // 보이는 모든 캘린더의 일정을 통합해 전역 레인 배정(주 경계 넘어도 같은 레인 유지)
@@ -198,7 +198,7 @@ export default function CalendarMonth() {
   function toggleChip(cal: Calendar) {
     setVisibleIds((prev) => {
       const next = new Set(prev);
-      if (selectMode === "single" && !cal.isHoliday) {
+      if (selectMode === "single") {
         for (const c of categoryCalendars) next.delete(c.id);
         next.add(cal.id);
       } else if (next.has(cal.id)) {
@@ -530,7 +530,7 @@ export default function CalendarMonth() {
             <div className="flex flex-wrap gap-1.5">
               {chipCalendars.map((cal) => {
                 const on = visibleIds.has(cal.id);
-                const color = cal.isHoliday ? HOLIDAY_COLOR : cal.color;
+                const color = cal.color;
                 return (
                   <button
                     key={cal.id}
@@ -611,9 +611,7 @@ export default function CalendarMonth() {
                     <button
                       key={key}
                       onClick={() => setSelectedDay(key)}
-                      className={`min-h-[92px] sm:min-h-[104px] bg-white pt-1 flex flex-col items-center ${
-                        isSelected ? "ring-2 ring-inset ring-sky-400 relative z-20" : ""
-                      }`}
+                      className="min-h-[92px] sm:min-h-[104px] bg-white pt-1 flex flex-col items-center"
                     >
                       <span
                         className={`text-xs leading-none flex items-center justify-center h-5 w-5 rounded-full ${
@@ -627,6 +625,23 @@ export default function CalendarMonth() {
                     </button>
                   );
                 })}
+
+                {/* 오버레이: 선택 링(막대 위, 투명 — 막대를 가리지 않음) */}
+                <div className="absolute inset-0 grid grid-cols-7 gap-px pointer-events-none z-30">
+                  {week.days.map((d) => {
+                    const k = dateKey(d);
+                    return (
+                      <div
+                        key={k}
+                        className={
+                          k === selectedDay
+                            ? "ring-2 ring-inset ring-sky-400 rounded-sm"
+                            : ""
+                        }
+                      />
+                    );
+                  })}
+                </div>
 
                 {/* 오버레이: 막대 레인 */}
                 <div className="absolute inset-x-0 top-[26px] bottom-0 px-px flex flex-col gap-0.5 pointer-events-none z-10">
