@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [supabase] = useState(() => createClient());
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const e = new URLSearchParams(window.location.search).get("auth_error");
+    if (e) setAuthError(e);
+  }, []);
 
   async function signInWithGoogle() {
     if (!supabase) return;
@@ -25,6 +31,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
         <h1 className="text-xl font-bold mb-2">캘린더</h1>
+        {authError && (
+          <p className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs px-3 py-2 break-words text-left">
+            로그인 오류: {authError}
+          </p>
+        )}
         {supabase ? (
           <>
             <p className="text-gray-500 text-sm mb-6">
