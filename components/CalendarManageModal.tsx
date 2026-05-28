@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export type ManageCalendar = { id: string; name: string; color: string };
 
@@ -31,6 +31,14 @@ export default function CalendarManageModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState(PRESET_COLORS[0]);
+
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [ioCalendarId, setIoCalendarId] = useState<string>(
+    categories[0]?.id ?? ""
+  );
+  const [ioBusy, setIoBusy] = useState(false);
+  const [ioMessage, setIoMessage] = useState<string | null>(null);
+  const [ioError, setIoError] = useState<string | null>(null);
 
   async function call(
     method: "POST" | "PATCH" | "DELETE",
@@ -97,6 +105,105 @@ export default function CalendarManageModal({
     )
       return;
     await call("DELETE", { calendarId: c.id });
+  }
+
+  function pickedCalendar(): ManageCalendar | null {
+    return categories.find((c) => c.id === ioCalendarId) ?? null;
+  }
+
+  async function exportIcs() {
+    const cal = pickedCalendar();
+    if (!cal) {
+      setIoError("카테고리를 선택하세요.");
+      return;
+    }
+    setIoBusy(true);
+    setIoError(null);
+    setIoMessage(null);
+    try {
+      const res = await fetch(
+        `/api/calendar/export?calendarId=${encodeURIComponent(cal.id)}`
+      );
+      if (res.status === 401) {
+        setIoError("세션 만료. 다시 로그인하세요.");
+        return;
+      }
+      if (!res.ok) {
+        setIoError("내보내기 실패");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `${cal.name || "calendar"}-${today}.ics`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setIoMessage(`‘${cal.name}’ 백업 다운로드 완료`);
+    } catch {
+      setIoError("오류가 발생했습니다.");
+    } finally {
+      setIoBusy(false);
+    }
+  }
+
+  function triggerImport() {
+    const cal = pickedCalendar();
+    if (!cal) {
+      setIoError("카테고리를 선택하세요.");
+      return;
+    }
+    setIoError(null);
+    setIoMessage(null);
+    fileRef.current?.click();
+  }
+
+  async function onFilePicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // 같은 파일 재선택 가능하도록 리셋
+    if (!file) return;
+    const cal = pickedCalendar();
+    if (!cal) {
+      setIoError("카테고리를 선택하세요.");
+      return;
+    }
+    setIoBusy(true);
+    setIoError(null);
+    setIoMessage(null);
+    try {
+      const icsText = await file.text();
+      const res = await fetch("/api/calendar/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendarId: cal.id, icsText }),
+      });
+      if (res.status === 401) {
+        setIoError("세션 만료. 다시 로그인하세요.");
+        return;
+      }
+      if (!res.ok) {
+        setIoError("가져오기 실패");
+        return;
+      }
+      const json = (await res.json()) as {
+        total: number;
+        created: number;
+        updated: number;
+        failed: number;
+      };
+      setIoMessage(
+        `‘${cal.name}’: ${json.created}개 추가, ${json.updated}개 업데이트` +
+          (json.failed > 0 ? `, ${json.failed}개 실패` : "")
+      );
+      onChanged();
+    } catch {
+      setIoError("오류가 발생했습니다.");
+    } finally {
+      setIoBusy(false);
+    }
   }
 
   return (
@@ -193,6 +300,62 @@ export default function CalendarManageModal({
         )}
 
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+
+        {/* 가져오기 / 내보내기 */}
+        <div className="rounded-lg border border-gray-200 p-3 mt-5">
+          <p className="text-xs text-gray-500 mb-2">
+            가져오기 / 내보내기 (.ics)
+          </p>
+          <div className="flex items-center gap-2">
+            <select
+              value={ioCalendarId}
+              onChange={(e) => setIoCalendarId(e.target.value)}
+              disabled={ioBusy || categories.length === 0}
+              className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+            >
+              {categories.length === 0 ? (
+                <option value="">카테고리 없음</option>
+              ) : (
+                categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={triggerImport}
+              disabled={ioBusy || categories.length === 0}
+              className="flex-1 rounded-lg border border-sky-500 text-sky-600 py-2 text-sm font-medium hover:bg-sky-50 disabled:opacity-50"
+            >
+              가져오기
+            </button>
+            <button
+              onClick={exportIcs}
+              disabled={ioBusy || categories.length === 0}
+              className="flex-1 rounded-lg bg-sky-500 text-white py-2 text-sm font-medium hover:bg-sky-600 disabled:opacity-50"
+            >
+              내보내기
+            </button>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".ics,text/calendar"
+            onChange={onFilePicked}
+            className="hidden"
+          />
+          {ioMessage && (
+            <p className="text-emerald-600 text-xs mt-2">{ioMessage}</p>
+          )}
+          {ioError && <p className="text-red-500 text-xs mt-2">{ioError}</p>}
+          <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+            내보내기는 선택한 카테고리의 전체 일정을 .ics로 다운로드합니다.
+            가져오기 시 같은 UID의 일정은 업데이트되어 중복이 생기지 않습니다.
+          </p>
+        </div>
 
         <div className="mt-5">
           <button
