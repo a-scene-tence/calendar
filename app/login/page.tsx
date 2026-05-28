@@ -37,6 +37,11 @@ export default function LoginPage() {
             >
               {loading ? "이동 중..." : "Google로 계속하기"}
             </button>
+            <p className="text-[11px] text-gray-400 mt-4 leading-relaxed">
+              현재 Google 검증 전(테스트 모드)입니다. 동의 화면에 &ldquo;확인되지 않은
+              앱&rdquo; 경고가 뜨면 <strong>고급 → 안전하지 않은 페이지로 이동</strong>을
+              눌러 진행하세요.
+            </p>
           </>
         ) : (
           <p className="text-amber-600 text-sm mt-2">

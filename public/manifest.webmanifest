@@ -1,0 +1,18 @@
+{
+  "name": "캘린더",
+  "short_name": "캘린더",
+  "description": "구글 캘린더 기반 개인 일정 관리",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
