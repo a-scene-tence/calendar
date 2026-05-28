@@ -6,5 +6,12 @@
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://msjnyyoxuhltmxapxvms.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_q9tJ7Y_yEEchRH-3VxiWag_A9pF_5OH"
   }
 }

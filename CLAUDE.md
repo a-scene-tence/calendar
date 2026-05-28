@@ -33,7 +33,7 @@
 | 프로덕션 빌드 | `npm run build` |
 | 린트 | `npm run lint` |
 | Cloudflare 프리뷰 | `npm run preview` (로컬 Workers 에뮬레이션) |
-| Cloudflare 배포 | `npm run deploy` |
+| Cloudflare 배포 | `npm run deploy` (로컬 PC에서 실행 — 웹 세션은 cloudflare.com 차단됨) |
 | Supabase 마이그레이션 | `npx supabase db push` (Supabase CLI 설정 후) |
 | Cloudflare 시크릿 등록 | `wrangler secret put <KEY>` |
 
@@ -49,6 +49,7 @@
 | 2026-05-24 | `npm run build` 타입 에러: `cookiesToSet implicitly has 'any'` (`lib/supabase/*.ts`) | `@supabase/ssr` setAll 콜백 파라미터 타입 미지정 | 파라미터에 `{name:string;value:string;options:Record<string,unknown>}[]` 명시 | strict 모드에서 콜백 인자는 명시적 타입 부여 |
 | 2026-05-24 | 캘린더 월 그리드에서 날짜 숫자가 일정 막대와 겹쳐 보임 | `<button>`은 단일 내용을 **세로 중앙 정렬**해서 `pt-1`로 상단 고정이 안 됨 → 숫자가 셀 중앙(~31px)에 위치, top-6 막대와 겹침 | 날짜칸 버튼에 `flex flex-col items-center` 부여해 숫자를 상단 고정 | 버튼 내부 내용을 상단 정렬하려면 `flex flex-col` 명시(버튼 기본 세로중앙정렬 주의) |
 | 2026-05-26 | Cloudflare 배포 불가(`opennextjs-cloudflare build`/`deploy`) | `open-next.config.ts` 누락 + `wrangler.jsonc`가 Pages용(`pages_build_output_dir`)이라 어댑터 v1 Workers 모델과 불일치 | `open-next.config.ts` 추가 + `wrangler.jsonc`를 `main`+`assets`(Workers)로 교체 | `@opennextjs/cloudflare` v1은 Workers 배포(`wrangler deploy`) + `open-next.config.ts` 필수. Pages 설정 사용 금지 |
+| 2026-05-28 | Claude Code 웹 세션에서 `wrangler whoami/deploy` 호출 시 `Host not in allowlist` 403 | 이 환경의 egress 프록시(Anthropic sandbox)가 `api.cloudflare.com`/`*.cloudflare.com` 호스트 전체를 차단 | `npm run deploy`는 로컬 PC 또는 네트워크 정책이 완화된 세션에서 실행 | `wrangler` 명령은 환경 네트워크 정책에 의존. 웹 세션에서 배포 시 `api.cloudflare.com` 허용 정책 사용 또는 로컬 실행 |
 
 ### 알려진 주의점 (시작 전 메모)
 - **Next.js on Cloudflare**: Node 전용 API 사용 시 edge 런타임에서 실패할 수 있음.
