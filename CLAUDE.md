@@ -6,8 +6,11 @@
 ## 프로젝트 개요
 
 캘린더 앱 — Google 캘린더 기반 개인 일정 관리(월 그리드·다일 막대·검색·일정 추가/수정). 모바일 우선,
-태블릿/PC 대응. 스택: **Next.js (App Router) + Cloudflare Pages/Workers + PWA + Supabase(인증/구글
+태블릿/PC 대응. 스택: **Next.js (App Router) + Cloudflare Workers + PWA + Supabase(인증/구글
 토큰) + Google Calendar API**.
+
+**배포 URL**: https://personal-dashboard.skynjy.workers.dev (workers.dev 무료 서브도메인,
+Google OAuth External + Testing 모드 — 공유 대상 Gmail을 사전에 Test users로 등록 필요).
 
 > 가계부 기능은 제거됨(2026-05: 캘린더 전용 앱으로 전환). `spec.md`의 가계부 관련 내용은 더 이상
 > 유효하지 않음. Supabase는 인증과 Google refresh_token 저장(`user_tokens`)에만 사용.
@@ -58,3 +61,5 @@
   테이블마다 `user_id = auth.uid()` 정책을 반드시 설정.
 - **localStorage**: origin·기기 종속. 크로스도메인/다기기 동기화 불가 → 공유 데이터는 Supabase 사용.
 - **삼성 캘린더**: 공개 API 없음. 구글 캘린더 동기화 경유로만 읽음(`spec.md` §7).
+- **OAuth 운영 모드**: External + Testing. 공유 대상 Gmail을 Google Cloud Console → OAuth consent
+  screen → Test users에 등록하지 않으면 동의 화면에서 `access_denied`. 최대 100명 한도.
