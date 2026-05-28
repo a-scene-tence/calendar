@@ -1,43 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
-import { refreshGoogleToken } from "@/lib/google-token";
 import { NextRequest, NextResponse } from "next/server";
+import { getProviderToken } from "@/lib/auth-token";
 
 const GCAL = "https://www.googleapis.com/calendar/v3/calendars";
 const CAL_LIST = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
-
-type TokenResult = { token: string } | { error: NextResponse };
-
-async function getProviderToken(): Promise<TokenResult> {
-  if (
-    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  let token = session?.provider_token ?? null;
-  if (!token) {
-    token = await refreshGoogleToken(supabase);
-  }
-  if (!token) {
-    return {
-      error: NextResponse.json(
-        { error: "No Google token. Re-login required." },
-        { status: 401 }
-      ),
-    };
-  }
-  return { token };
-}
 
 // 배경색 밝기(YIQ)로 대비되는 전경색(흑/백) 계산
 function foregroundFor(bg: string): string {
