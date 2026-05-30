@@ -307,7 +307,7 @@ export default function CalendarMonth() {
       <Card>
         <p className="text-amber-600 text-sm">
           세션이 만료되었습니다(Google 토큰 만료).{" "}
-          <a href="/login" className="underline font-medium">
+          <a href="/login" className="text-brand font-semibold underline">
             다시 로그인
           </a>{" "}
           후 이용하세요.
@@ -349,14 +349,13 @@ export default function CalendarMonth() {
         {/* 헤더: 년/월 드롭다운 이동 */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <div className="flex items-center gap-1.5">
-            <span aria-hidden>📅</span>
             <select
               value={viewDate.year}
               onChange={(e) => {
                 setSelectedDay(null);
                 setViewDate((v) => ({ ...v, year: Number(e.target.value) }));
               }}
-              className="rounded-lg border border-gray-200 px-2 py-1 text-sm font-semibold bg-white"
+              className="rounded-xl border border-transparent bg-gray-50 px-3 py-1.5 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
               aria-label="연도 선택"
             >
               {Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i).map(
@@ -373,7 +372,7 @@ export default function CalendarMonth() {
                 setSelectedDay(null);
                 setViewDate((v) => ({ ...v, month: Number(e.target.value) }));
               }}
-              className="rounded-lg border border-gray-200 px-2 py-1 text-sm font-semibold bg-white"
+              className="rounded-xl border border-transparent bg-gray-50 px-3 py-1.5 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
               aria-label="월 선택"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
@@ -387,27 +386,27 @@ export default function CalendarMonth() {
             {canWrite && (
               <button
                 onClick={() => openCreate(selectedDay)}
-                className="px-2.5 py-1 mr-1 text-sky-600 hover:bg-sky-50 rounded-lg text-xs font-medium"
+                className="px-3 py-1.5 mr-1 text-brand bg-brand-50 hover:bg-brand-100 rounded-xl text-xs font-semibold transition active:scale-95"
               >
                 + 일정
               </button>
             )}
             <button
               onClick={goPrev}
-              className="px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-sm"
+              className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
               aria-label="이전 달"
             >
               ‹
             </button>
             <button
               onClick={goToday}
-              className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded-lg text-xs"
+              className="px-3 py-1.5 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition active:scale-95"
             >
               오늘
             </button>
             <button
               onClick={goNext}
-              className="px-2 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-sm"
+              className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
               aria-label="다음 달"
             >
               ›
@@ -424,18 +423,18 @@ export default function CalendarMonth() {
               if (e.key === "Enter") runSearch(searchInput);
             }}
             placeholder="일정 검색 (제목·메모, 전체 기간)"
-            className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+            className="flex-1 min-w-0 rounded-xl border border-transparent bg-gray-50 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15"
           />
           <button
             onClick={() => runSearch(searchInput)}
-            className="px-3 py-2 rounded-lg bg-sky-500 text-white text-sm font-medium shrink-0 hover:bg-sky-600"
+            className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95"
           >
             검색
           </button>
           {searchQuery && (
             <button
               onClick={clearSearch}
-              className="px-2.5 py-2 rounded-lg border border-gray-200 text-gray-500 text-sm shrink-0 hover:bg-gray-50"
+              className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm shrink-0 transition hover:bg-gray-200 active:scale-95"
               aria-label="검색 닫기"
             >
               ✕
@@ -444,35 +443,39 @@ export default function CalendarMonth() {
         </div>
 
         {searchQuery ? (
-          <div>
-            <h3 className="text-sm font-medium text-gray-600 mb-2">
+          <div className="animate-pop">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">
               ‘{searchQuery}’ 검색 결과
-              {searching ? "" : ` ${searchResults.length}건`}
+              {searching ? "" : (
+                <span className="ml-1.5 text-brand">{searchResults.length}건</span>
+              )}
             </h3>
             {searching ? (
               <p className="text-gray-400 text-sm">검색 중…</p>
             ) : searchResults.length === 0 ? (
               <p className="text-gray-400 text-sm">결과가 없습니다.</p>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-0.5">
                 {searchResults.map((r) => {
                   const editable =
                     !r.isHoliday &&
                     writableCalendars.some((c) => c.id === r.calendarId);
                   const inner = (
                     <>
-                      <span className="text-xs text-gray-400 shrink-0 w-24">
+                      <span className="text-[11px] font-medium text-gray-500 shrink-0 w-24">
                         {formatResultDate(r.start)}
                       </span>
                       <span
-                        className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                        className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
                         style={{
                           backgroundColor: r.isHoliday ? HOLIDAY_COLOR : r.color,
                         }}
                         aria-hidden
                       />
                       <span className="min-w-0">
-                        <span className="text-sm leading-snug">{r.summary}</span>
+                        <span className="text-sm font-medium leading-snug text-gray-900">
+                          {r.summary}
+                        </span>
                         <span className="block text-xs text-gray-400 truncate">
                           {r.calendarName}
                           {r.location ? ` · ${r.location}` : ""}
@@ -485,12 +488,12 @@ export default function CalendarMonth() {
                       {editable ? (
                         <button
                           onClick={() => openEdit(r)}
-                          className="w-full flex items-start gap-2 rounded-lg p-1.5 text-left hover:bg-gray-50"
+                          className="w-full flex items-start gap-2 rounded-xl p-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
                         >
                           {inner}
                         </button>
                       ) : (
-                        <div className="flex items-start gap-2 p-1.5">{inner}</div>
+                        <div className="flex items-start gap-2 p-2">{inner}</div>
                       )}
                     </li>
                   );
@@ -503,16 +506,16 @@ export default function CalendarMonth() {
         {/* 카테고리: 단일/다중 모드 + 표시 토글 + 관리 */}
         {chipCalendars.length > 0 && (
           <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+            <div className="flex items-center gap-2 mb-2.5">
+              <div className="inline-flex p-0.5 rounded-xl bg-gray-100 text-xs">
                 {(["single", "multi"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => changeMode(m)}
-                    className={`px-2.5 py-1 ${
+                    className={`px-3 py-1 rounded-lg font-semibold transition active:scale-95 ${
                       selectMode === m
-                        ? "bg-sky-500 text-white"
-                        : "bg-white text-gray-500"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-500"
                     }`}
                     aria-pressed={selectMode === m}
                   >
@@ -522,7 +525,7 @@ export default function CalendarMonth() {
               </div>
               <button
                 onClick={() => setManageOpen(true)}
-                className="ml-auto px-2.5 py-1 text-gray-500 hover:bg-gray-100 rounded-lg text-xs font-medium"
+                className="ml-auto px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-xl text-xs font-semibold transition active:scale-95"
               >
                 카테고리 관리
               </button>
@@ -535,8 +538,10 @@ export default function CalendarMonth() {
                   <button
                     key={cal.id}
                     onClick={() => toggleChip(cal)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
-                      on ? "border-transparent" : "border-gray-200 bg-white text-gray-500"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95 ${
+                      on
+                        ? "border-transparent shadow-sm"
+                        : "border-transparent bg-gray-100 text-gray-500"
                     }`}
                     style={
                       on
@@ -561,7 +566,7 @@ export default function CalendarMonth() {
         )}
 
         {/* 요일 헤더 (일=빨강, 토=파랑) */}
-        <div className="grid grid-cols-7 text-center text-xs mb-1">
+        <div className="grid grid-cols-7 text-center text-[11px] font-semibold mb-1.5">
           {WEEKDAYS.map((w, i) => (
             <div
               key={w}
@@ -579,7 +584,10 @@ export default function CalendarMonth() {
         </div>
 
         {/* 월 그리드 (주 행 + 막대 오버레이) */}
-        <div className="flex flex-col gap-px bg-gray-100 rounded-lg overflow-hidden">
+        <div
+          key={`${viewDate.year}-${viewDate.month}`}
+          className="flex flex-col gap-px bg-gray-100 rounded-2xl overflow-hidden animate-month"
+        >
           {weeks.map((week, wi) => {
             const hasOverflow = week.overflow.some((n) => n > 0);
             return (
@@ -592,7 +600,6 @@ export default function CalendarMonth() {
                   const key = dateKey(d);
                   const inMonth = d.getMonth() + 1 === viewDate.month;
                   const isToday = key === todayKey;
-                  const isSelected = key === selectedDay;
                   const dow = d.getDay();
                   const isHolidayDay = items.some(
                     (it) =>
@@ -611,12 +618,12 @@ export default function CalendarMonth() {
                     <button
                       key={key}
                       onClick={() => setSelectedDay(key)}
-                      className="min-h-[92px] sm:min-h-[104px] bg-white pt-1 flex flex-col items-center"
+                      className="min-h-[92px] sm:min-h-[104px] bg-white pt-1.5 flex flex-col items-center transition-colors active:bg-gray-50"
                     >
                       <span
-                        className={`text-xs leading-none flex items-center justify-center h-5 w-5 rounded-full ${
+                        className={`text-[11px] font-semibold leading-none flex items-center justify-center h-6 w-6 rounded-full transition ${
                           isToday
-                            ? "bg-sky-500 text-white font-semibold"
+                            ? "bg-brand text-white"
                             : numberColor
                         }`}
                       >
@@ -635,7 +642,7 @@ export default function CalendarMonth() {
                         key={k}
                         className={
                           k === selectedDay
-                            ? "ring-2 ring-inset ring-sky-400 rounded-sm"
+                            ? "ring-2 ring-inset ring-brand rounded-sm transition"
                             : ""
                         }
                       />
@@ -644,9 +651,9 @@ export default function CalendarMonth() {
                 </div>
 
                 {/* 오버레이: 막대 레인 */}
-                <div className="absolute inset-x-0 top-[26px] bottom-0 px-px flex flex-col gap-0.5 pointer-events-none z-10">
+                <div className="absolute inset-x-0 top-[28px] bottom-0 px-px flex flex-col gap-0.5 pointer-events-none z-10">
                   {week.lanes.map((segs, lane) => (
-                    <div key={lane} className="grid grid-cols-7 gap-px h-[15px]">
+                    <div key={lane} className="grid grid-cols-7 gap-px h-[16px]">
                       {segs.map((seg) => {
                         const { item, colStart, span, roundLeft, roundRight } = seg;
                         const label =
@@ -666,9 +673,9 @@ export default function CalendarMonth() {
                               backgroundColor: item.color,
                               color: barTextColor(item.color),
                             }}
-                            className={`pointer-events-auto h-full min-w-0 px-1 text-[10px] font-medium leading-[15px] truncate text-left ${
-                              roundLeft ? "rounded-l-sm" : ""
-                            } ${roundRight ? "rounded-r-sm" : ""}`}
+                            className={`pointer-events-auto h-full min-w-0 px-1.5 text-[10px] font-semibold leading-[16px] truncate text-left transition active:opacity-80 ${
+                              roundLeft ? "rounded-l-md" : ""
+                            } ${roundRight ? "rounded-r-md" : ""}`}
                             title={item.event.summary}
                           >
                             {label}
@@ -684,7 +691,7 @@ export default function CalendarMonth() {
                           <span
                             key={c}
                             style={{ gridColumn: `${c + 1}` }}
-                            className="text-[9px] leading-none text-gray-400 pl-0.5"
+                            className="text-[9px] font-semibold leading-none text-gray-400 pl-1"
                           >
                             +{n}
                           </span>
@@ -701,19 +708,19 @@ export default function CalendarMonth() {
         </div>
 
         {/* 선택한 날짜 상세 */}
-        <div className="mt-4">
+        <div className="mt-5">
           {!selectedDay ? (
             <p className="text-gray-400 text-sm">날짜를 탭하면 일정이 표시됩니다.</p>
           ) : (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium text-gray-600">
+            <div key={selectedDay} className="animate-pop">
+              <div className="flex items-center justify-between mb-2.5">
+                <h3 className="text-sm font-bold text-gray-900">
                   {formatDayHeading(selectedDay)}
                 </h3>
                 {canWrite && (
                   <button
                     onClick={() => openCreate(selectedDay)}
-                    className="text-xs text-sky-600 hover:underline"
+                    className="text-xs font-semibold text-brand px-2.5 py-1 rounded-lg transition hover:bg-brand-50 active:scale-95"
                   >
                     + 이 날 일정 추가
                   </button>
@@ -723,25 +730,25 @@ export default function CalendarMonth() {
               {selectedHolidays.length === 0 && selectedEvents.length === 0 ? (
                 <p className="text-gray-400 text-sm">일정이 없습니다.</p>
               ) : (
-                <ul className="space-y-1">
+                <ul className="space-y-0.5">
                   {selectedHolidays.map((h) => (
                     <li
                       key={h.id}
-                      className="flex items-start gap-2 p-1.5 text-sm text-red-500"
+                      className="flex items-start gap-2 p-2 text-sm text-red-500"
                     >
-                      <span className="w-12 shrink-0 text-xs text-red-400 mt-0.5">
+                      <span className="w-12 shrink-0 text-[11px] font-semibold text-red-400 mt-0.5">
                         공휴일
                       </span>
-                      <span className="min-w-0 truncate">{h.summary}</span>
+                      <span className="min-w-0 truncate font-medium">{h.summary}</span>
                     </li>
                   ))}
                   {selectedEvents.map((it) => (
                     <li key={it.event.id}>
                       <button
                         onClick={() => openEdit(it.event)}
-                        className="w-full flex items-start gap-2 rounded-lg p-1.5 text-left hover:bg-gray-50"
+                        className="w-full flex items-start gap-2 rounded-xl p-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
                       >
-                        <span className="text-xs text-gray-400 mt-0.5 shrink-0 w-12">
+                        <span className="text-[11px] font-semibold text-gray-500 mt-0.5 shrink-0 w-12">
                           {formatTime(it.event.start)}
                         </span>
                         <span
@@ -750,7 +757,7 @@ export default function CalendarMonth() {
                           aria-hidden
                         />
                         <span className="min-w-0">
-                          <span className="text-sm leading-snug">
+                          <span className="text-sm font-medium leading-snug text-gray-900">
                             {it.event.summary}
                           </span>
                           {it.event.location && (
@@ -764,7 +771,7 @@ export default function CalendarMonth() {
                   ))}
                 </ul>
               )}
-            </>
+            </div>
           )}
         </div>
           </>
@@ -794,7 +801,7 @@ export default function CalendarMonth() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div className="bg-white rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100 p-5 sm:p-6">
       {children}
     </div>
   );
