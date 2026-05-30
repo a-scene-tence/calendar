@@ -15,7 +15,7 @@ export default function CalendarPage() {
       <header className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight text-gray-900">
-            캘린더
+            Do &amp; Done
           </h1>
           <p className="text-gray-500 text-[13px] mt-1">{dateStr}</p>
         </div>
