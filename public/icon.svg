@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#ffffff"/>
-  <g fill="#3182f6">
+  <g fill="#A8C8EF">
     <!-- 상단 바인딩 탭 2개 -->
     <rect x="186" y="128" width="24" height="56" rx="12"/>
     <rect x="302" y="128" width="24" height="56" rx="12"/>
