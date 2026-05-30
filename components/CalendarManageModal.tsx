@@ -208,30 +208,31 @@ export default function CalendarManageModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4 animate-backdrop"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-5 max-h-[90vh] overflow-y-auto"
+        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto animate-sheet"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-base font-semibold mb-4">카테고리 관리</h2>
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
+        <h2 className="text-lg font-bold mb-5 tracking-tight">카테고리 관리</h2>
 
         {/* 추가 */}
-        <div className="rounded-lg border border-gray-200 p-3 mb-4">
-          <p className="text-xs text-gray-500 mb-2">새 카테고리 추가</p>
+        <div className="rounded-2xl bg-gray-50 p-3.5 mb-4">
+          <p className="text-xs font-medium text-gray-500 mb-2.5">새 카테고리 추가</p>
           <div className="flex items-center gap-2">
             <ColorPicker value={newColor} onChange={setNewColor} />
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="카테고리 이름"
-              className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="flex-1 min-w-0 rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
             />
             <button
               onClick={add}
               disabled={busy}
-              className="rounded-lg bg-sky-500 text-white px-3 py-2 text-sm font-medium shrink-0 hover:bg-sky-600 disabled:opacity-50"
+              className="rounded-xl bg-brand text-white px-3.5 py-2.5 text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95 disabled:opacity-50"
             >
               추가
             </button>
@@ -240,56 +241,59 @@ export default function CalendarManageModal({
 
         {/* 목록 */}
         {categories.length === 0 ? (
-          <p className="text-gray-400 text-sm">관리할 수 있는 카테고리가 없습니다.</p>
+          <p className="text-gray-400 text-sm py-2">관리할 수 있는 카테고리가 없습니다.</p>
         ) : (
           <ul className="space-y-1">
             {categories.map((c) =>
               editingId === c.id ? (
                 <li
                   key={c.id}
-                  className="flex items-center gap-2 rounded-lg bg-gray-50 p-2"
+                  className="flex items-center gap-2 rounded-2xl bg-brand-50 p-2.5"
                 >
                   <ColorPicker value={editColor} onChange={setEditColor} />
                   <input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="flex-1 min-w-0 rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                    className="flex-1 min-w-0 rounded-xl border border-transparent bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
                   />
                   <button
                     onClick={saveEdit}
                     disabled={busy}
-                    className="text-sky-600 text-sm font-medium shrink-0 disabled:opacity-50"
+                    className="text-brand text-sm font-semibold shrink-0 px-2 py-1 rounded-lg transition active:scale-95 disabled:opacity-50"
                   >
                     저장
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
                     disabled={busy}
-                    className="text-gray-500 text-sm shrink-0"
+                    className="text-gray-500 text-sm shrink-0 px-2 py-1 rounded-lg transition active:scale-95"
                   >
                     취소
                   </button>
                 </li>
               ) : (
-                <li key={c.id} className="flex items-center gap-2 p-2">
+                <li
+                  key={c.id}
+                  className="flex items-center gap-2 p-2.5 rounded-xl transition hover:bg-gray-50"
+                >
                   <span
                     className="h-3.5 w-3.5 rounded-full shrink-0"
                     style={{ backgroundColor: c.color }}
                     aria-hidden
                   />
-                  <span className="flex-1 min-w-0 truncate text-sm text-gray-700">
+                  <span className="flex-1 min-w-0 truncate text-sm font-medium text-gray-800">
                     {c.name}
                   </span>
                   <button
                     onClick={() => startEdit(c)}
-                    className="text-gray-500 text-sm shrink-0 hover:text-gray-700"
+                    className="text-gray-500 text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition hover:bg-gray-100 active:scale-95"
                   >
                     수정
                   </button>
                   <button
                     onClick={() => remove(c)}
                     disabled={busy}
-                    className="text-red-500 text-sm shrink-0 hover:text-red-600 disabled:opacity-50"
+                    className="text-red-500 text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition hover:bg-red-50 active:scale-95 disabled:opacity-50"
                   >
                     삭제
                   </button>
@@ -302,8 +306,8 @@ export default function CalendarManageModal({
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
 
         {/* 가져오기 / 내보내기 */}
-        <div className="rounded-lg border border-gray-200 p-3 mt-5">
-          <p className="text-xs text-gray-500 mb-2">
+        <div className="rounded-2xl bg-gray-50 p-3.5 mt-5">
+          <p className="text-xs font-medium text-gray-500 mb-2.5">
             가져오기 / 내보내기 (.ics)
           </p>
           <div className="flex items-center gap-2">
@@ -311,7 +315,7 @@ export default function CalendarManageModal({
               value={ioCalendarId}
               onChange={(e) => setIoCalendarId(e.target.value)}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+              className="flex-1 min-w-0 rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
             >
               {categories.length === 0 ? (
                 <option value="">카테고리 없음</option>
@@ -328,14 +332,14 @@ export default function CalendarManageModal({
             <button
               onClick={triggerImport}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 rounded-lg border border-sky-500 text-sky-600 py-2 text-sm font-medium hover:bg-sky-50 disabled:opacity-50"
+              className="flex-1 rounded-xl bg-white text-brand py-2.5 text-sm font-semibold border border-brand transition hover:bg-brand-50 active:scale-[0.98] disabled:opacity-50"
             >
               가져오기
             </button>
             <button
               onClick={exportIcs}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 rounded-lg bg-sky-500 text-white py-2 text-sm font-medium hover:bg-sky-600 disabled:opacity-50"
+              className="flex-1 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
             >
               내보내기
             </button>
@@ -348,10 +352,10 @@ export default function CalendarManageModal({
             className="hidden"
           />
           {ioMessage && (
-            <p className="text-emerald-600 text-xs mt-2">{ioMessage}</p>
+            <p className="text-emerald-600 text-xs font-medium mt-2.5">{ioMessage}</p>
           )}
-          {ioError && <p className="text-red-500 text-xs mt-2">{ioError}</p>}
-          <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+          {ioError && <p className="text-red-500 text-xs font-medium mt-2.5">{ioError}</p>}
+          <p className="text-[11px] text-gray-400 mt-2.5 leading-relaxed">
             내보내기는 선택한 카테고리의 전체 일정을 .ics로 다운로드합니다.
             가져오기 시 같은 UID의 일정은 업데이트되어 중복이 생기지 않습니다.
           </p>
@@ -360,7 +364,7 @@ export default function CalendarManageModal({
         <div className="mt-5">
           <button
             onClick={onClose}
-            className="w-full rounded-lg border border-gray-200 text-gray-600 py-2.5 text-sm hover:bg-gray-50"
+            className="w-full rounded-xl bg-gray-100 text-gray-700 py-3 text-sm font-semibold transition hover:bg-gray-200 active:scale-[0.98]"
           >
             닫기
           </button>
@@ -379,7 +383,7 @@ function ColorPicker({
 }) {
   return (
     <label
-      className="relative h-8 w-8 shrink-0 rounded-lg border border-gray-200 cursor-pointer"
+      className="relative h-10 w-10 shrink-0 rounded-xl cursor-pointer ring-2 ring-white shadow-sm transition active:scale-95"
       style={{ backgroundColor: value }}
       aria-label="색상 선택"
     >
