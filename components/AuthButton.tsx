@@ -29,7 +29,10 @@ export default function AuthButton() {
 
   if (!user) {
     return (
-      <a href="/login" className="text-sm text-sky-600 underline">
+      <a
+        href="/login"
+        className="rounded-full bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition active:scale-95"
+      >
         로그인
       </a>
     );
@@ -37,10 +40,13 @@ export default function AuthButton() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-500 truncate max-w-[140px]">
+      <span className="text-xs text-gray-400 truncate max-w-[140px]">
         {user.email}
       </span>
-      <button onClick={signOut} className="text-sm text-gray-500 underline">
+      <button
+        onClick={signOut}
+        className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-200 active:scale-95"
+      >
         로그아웃
       </button>
     </div>

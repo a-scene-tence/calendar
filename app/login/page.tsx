@@ -22,22 +22,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-        <h1 className="text-xl font-bold mb-2">캘린더</h1>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gray-50">
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 p-8 text-center animate-pop">
+        <h1 className="text-2xl font-bold mb-2 tracking-tight">캘린더</h1>
         {supabase ? (
           <>
-            <p className="text-gray-500 text-sm mb-6">
+            <p className="text-gray-500 text-sm mb-7">
               Google 계정으로 로그인하세요
             </p>
             <button
               onClick={signInWithGoogle}
               disabled={loading}
-              className="w-full rounded-lg bg-sky-500 text-white py-2.5 text-sm font-medium hover:bg-sky-600 disabled:opacity-50"
+              className="w-full rounded-xl bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? "이동 중..." : "Google로 계속하기"}
             </button>
-            <p className="text-[11px] text-gray-400 mt-4 leading-relaxed">
+            <p className="text-[11px] text-gray-400 mt-5 leading-relaxed">
               현재 Google 검증 전(테스트 모드)입니다. 동의 화면에 &ldquo;확인되지 않은
               앱&rdquo; 경고가 뜨면 <strong>고급 → 안전하지 않은 페이지로 이동</strong>을
               눌러 진행하세요.
