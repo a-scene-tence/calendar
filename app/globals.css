@@ -1,1 +1,108 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
 @import "tailwindcss";
+
+@theme {
+  --color-brand: #3182f6;
+  --color-brand-hover: #1b64da;
+  --color-brand-50: #e8f1fd;
+  --color-brand-100: #c9defb;
+
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system,
+    "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+
+  --ease-toss: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes month-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-backdrop {
+  animation: backdrop-in 180ms var(--ease-toss);
+}
+
+.animate-sheet {
+  animation: sheet-up 320ms var(--ease-toss);
+}
+
+@media (min-width: 640px) {
+  .animate-sheet {
+    animation: dialog-in 220ms var(--ease-toss);
+  }
+}
+
+.animate-pop {
+  animation: pop-in 220ms var(--ease-toss);
+}
+
+.animate-month {
+  animation: month-in 220ms var(--ease-toss);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-backdrop,
+  .animate-sheet,
+  .animate-pop,
+  .animate-month {
+    animation: none;
+  }
+}
