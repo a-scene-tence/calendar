@@ -19,12 +19,14 @@ export default function CalendarManageModal({
   categories,
   categoryOrder,
   onOrderChange,
+  orderSaveError,
   onClose,
   onChanged,
 }: {
   categories: ManageCalendar[];
   categoryOrder: string[];
   onOrderChange: (newOrder: string[]) => void;
+  orderSaveError?: string | null;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -358,6 +360,9 @@ export default function CalendarManageModal({
         )}
 
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+        {orderSaveError && (
+          <p className="text-red-500 text-sm mt-3">순서 저장 실패: {orderSaveError}</p>
+        )}
 
         {/* 가져오기 / 내보내기 */}
         <div className="rounded-2xl bg-gray-50 p-3.5 mt-5">

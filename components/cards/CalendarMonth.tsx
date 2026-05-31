@@ -75,6 +75,7 @@ export default function CalendarMonth() {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState<"single" | "multi">("single");
+  const [orderSaveError, setOrderSaveError] = useState<string | null>(null);
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
   const [manageOpen, setManageOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(dateKey(today));
@@ -97,13 +98,19 @@ export default function CalendarMonth() {
     const body = JSON.stringify({ categoryOrder: pendingOrderRef.current });
     pendingOrderRef.current = null;
     try {
-      await fetch("/api/user/preferences", {
+      const res = await fetch("/api/user/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body,
       });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        setOrderSaveError(j.error ?? `순서 저장 실패 (${res.status})`);
+      } else {
+        setOrderSaveError(null);
+      }
     } catch {
-      // 다음 load에서 서버 값으로 정합화
+      setOrderSaveError("순서 저장 실패 (네트워크 오류)");
     }
   }, []);
 
@@ -263,6 +270,7 @@ export default function CalendarMonth() {
   // 사용자 지정 카테고리 순서 갱신(낙관적: 즉시 반영 + 디바운스 백그라운드 저장)
   function handleOrderChange(newOrder: string[]) {
     setCategoryOrder(newOrder);
+    setOrderSaveError(null);
     pendingOrderRef.current = newOrder;
     if (orderSaveTimer.current) clearTimeout(orderSaveTimer.current);
     orderSaveTimer.current = setTimeout(() => {
@@ -838,6 +846,7 @@ export default function CalendarMonth() {
           categories={ownerCategories}
           categoryOrder={categoryOrder}
           onOrderChange={handleOrderChange}
+          orderSaveError={orderSaveError}
           onClose={() => setManageOpen(false)}
           onChanged={() => load({ withOrder: true })}
         />
