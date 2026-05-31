@@ -87,22 +87,58 @@ export default function CalendarMonth() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const load = useCallback(() => {
-    setStatus("loading");
-    return fetch(`/api/calendar?year=${viewDate.year}&month=${viewDate.month}`)
-      .then(async (r) => {
-        if (r.status === 401) return setStatus("unauthorized");
-        if (!r.ok) return setStatus("error");
+  const orderSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingOrderRef = useRef<string[] | null>(null);
+
+  const flushOrderSave = useCallback(async () => {
+    if (!orderSaveTimer.current || !pendingOrderRef.current) return;
+    clearTimeout(orderSaveTimer.current);
+    orderSaveTimer.current = null;
+    const body = JSON.stringify({ categoryOrder: pendingOrderRef.current });
+    pendingOrderRef.current = null;
+    try {
+      await fetch("/api/user/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+    } catch {
+      // 다음 load에서 서버 값으로 정합화
+    }
+  }, []);
+
+  const load = useCallback(
+    async (opts: { withOrder?: boolean } = {}) => {
+      // 사용자 지정 순서를 서버 값으로 동기화하기 전에 디바운스 중인 PUT을 먼저 반영.
+      if (opts.withOrder) await flushOrderSave();
+      setStatus("loading");
+      try {
+        const r = await fetch(
+          `/api/calendar?year=${viewDate.year}&month=${viewDate.month}`
+        );
+        if (r.status === 401) {
+          setStatus("unauthorized");
+          return;
+        }
+        if (!r.ok) {
+          setStatus("error");
+          return;
+        }
         const data = await r.json();
         setCalendars(data.calendars ?? []);
-        if (Array.isArray(data.categoryOrder)) setCategoryOrder(data.categoryOrder);
+        if (opts.withOrder && Array.isArray(data.categoryOrder)) {
+          setCategoryOrder(data.categoryOrder);
+        }
         setStatus("ok");
-      })
-      .catch(() => setStatus("error"));
-  }, [viewDate.year, viewDate.month]);
+      } catch {
+        setStatus("error");
+      }
+    },
+    [viewDate.year, viewDate.month, flushOrderSave]
+  );
 
   useEffect(() => {
-    load();
+    load({ withOrder: true });
   }, [load]);
 
   // 카테고리(공휴일 제외) — 사용자 지정 순서(categoryOrder) 우선, 나머지는 Google 기본 순.
@@ -225,18 +261,12 @@ export default function CalendarMonth() {
   }
 
   // 사용자 지정 카테고리 순서 갱신(낙관적: 즉시 반영 + 디바운스 백그라운드 저장)
-  const orderSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function handleOrderChange(newOrder: string[]) {
     setCategoryOrder(newOrder);
+    pendingOrderRef.current = newOrder;
     if (orderSaveTimer.current) clearTimeout(orderSaveTimer.current);
     orderSaveTimer.current = setTimeout(() => {
-      fetch("/api/user/preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryOrder: newOrder }),
-      }).catch(() => {
-        // 실패 시 다음 load에서 서버 값으로 정합화
-      });
+      void flushOrderSave();
     }, 250);
   }
 
@@ -809,7 +839,7 @@ export default function CalendarMonth() {
           categoryOrder={categoryOrder}
           onOrderChange={handleOrderChange}
           onClose={() => setManageOpen(false)}
-          onChanged={load}
+          onChanged={() => load({ withOrder: true })}
         />
       )}
     </>
