@@ -6,7 +6,9 @@ import { gfetch, readGoogleError } from "@/lib/google-fetch";
 const GCAL = "https://www.googleapis.com/calendar/v3/calendars";
 const CAL_LIST = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
 
-// 배경색 밝기(YIQ)로 대비되는 전경색(흑/백) 계산
+// 배경색 밝기(YIQ)로 대비되는 전경색 계산.
+// Google calendarList는 colorRgbFormat=true에서도 foregroundColor로 사실상
+// #000000 / #ffffff 만 허용한다(그 외 값은 400 "Invalid foreground color").
 function foregroundFor(bg: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(bg.trim());
   if (!m) return "#ffffff";
@@ -15,7 +17,7 @@ function foregroundFor(bg: string): string {
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 150 ? "#1f2937" : "#ffffff";
+  return yiq >= 150 ? "#000000" : "#ffffff";
 }
 
 function normalizeHex(c: string): string | null {
