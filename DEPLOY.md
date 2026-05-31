@@ -113,11 +113,16 @@ Production이어도 다음에는 refresh_token이 끊긴다: 사용자가 액세
 1. https://supabase.com/dashboard → 프로젝트 `msjnyyoxuhltmxapxvms` 선택
    (project ref는 `wrangler.jsonc`의 Supabase URL 서브도메인에서 확인 가능).
 2. 좌측 **SQL Editor → New query**.
-3. `supabase/migrations/20260531000001_user_tokens_access_cache.sql` 내용을 그대로 붙여넣기:
+3. 마이그레이션 SQL을 그대로 붙여넣기:
    ```sql
+   -- supabase/migrations/20260531000001_user_tokens_access_cache.sql
    ALTER TABLE user_tokens
      ADD COLUMN IF NOT EXISTS google_access_token text,
      ADD COLUMN IF NOT EXISTS access_expires_at timestamptz;
+
+   -- supabase/migrations/20260531000002_user_category_order.sql
+   ALTER TABLE user_tokens
+     ADD COLUMN IF NOT EXISTS category_order jsonb;
    ```
 4. **Run** (또는 ⌘/Ctrl+Enter). `IF NOT EXISTS` 덕분에 재실행해도 안전.
 5. 검증 쿼리:
