@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProviderToken } from "@/lib/auth-token";
+import { createClient } from "@/lib/supabase/server";
+import { gfetch, readGoogleError } from "@/lib/google-fetch";
 
 const GCAL = "https://www.googleapis.com/calendar/v3/calendars";
 const CAL_LIST = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
@@ -21,27 +23,19 @@ function normalizeHex(c: string): string | null {
   return m ? `#${m[1].toLowerCase()}` : null;
 }
 
-// calendarList 색상 설정(colorRgbFormat=true 시 background+foreground 둘 다 필요)
-async function setColor(token: string, calendarId: string, backgroundColor: string) {
-  return fetch(
-    `${CAL_LIST}/${encodeURIComponent(calendarId)}?colorRgbFormat=true`,
-    {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        backgroundColor,
-        foregroundColor: foregroundFor(backgroundColor),
-      }),
-    }
+async function failJson(res: Response, fallback: string) {
+  const { status, message } = await readGoogleError(res);
+  console.warn(`[calendars] ${fallback}: ${status} ${message}`);
+  return NextResponse.json(
+    { error: fallback, googleStatus: status, googleMessage: message },
+    { status }
   );
 }
 
 export async function POST(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const body = (await request.json()) as {
     summary?: string;
@@ -52,25 +46,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "이름을 입력하세요." }, { status: 400 });
   }
 
-  const res = await fetch(GCAL, {
+  const { res: createRes, token } = await gfetch(supabase, auth.token, GCAL, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${auth.token}`,
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ summary }),
   });
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: "카테고리 추가 실패", status: res.status },
-      { status: res.status }
-    );
-  }
-  const created = (await res.json()) as { id: string };
+  if (!createRes.ok) return failJson(createRes, "카테고리 추가 실패");
+  const created = (await createRes.json()) as { id: string };
 
   const bg = body.backgroundColor ? normalizeHex(body.backgroundColor) : null;
   if (bg) {
-    await setColor(auth.token, created.id, bg);
+    await gfetch(
+      supabase,
+      token,
+      `${CAL_LIST}/${encodeURIComponent(created.id)}?colorRgbFormat=true`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          backgroundColor: bg,
+          foregroundColor: foregroundFor(bg),
+        }),
+      }
+    );
   }
   return NextResponse.json({ calendar: { id: created.id, summary } });
 }
@@ -78,6 +76,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const body = (await request.json()) as {
     calendarId?: string;
@@ -88,35 +87,39 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "calendarId 필수" }, { status: 400 });
   }
 
+  let token = auth.token;
+
   if (typeof body.summary === "string" && body.summary.trim()) {
-    const res = await fetch(
+    const r = await gfetch(
+      supabase,
+      token,
       `${GCAL}/${encodeURIComponent(body.calendarId)}`,
       {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${auth.token}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ summary: body.summary.trim() }),
       }
     );
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "이름 수정 실패", status: res.status },
-        { status: res.status }
-      );
-    }
+    token = r.token;
+    if (!r.res.ok) return failJson(r.res, "이름 수정 실패");
   }
 
   const bg = body.backgroundColor ? normalizeHex(body.backgroundColor) : null;
   if (bg) {
-    const res = await setColor(auth.token, body.calendarId, bg);
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "색상 수정 실패", status: res.status },
-        { status: res.status }
-      );
-    }
+    const r = await gfetch(
+      supabase,
+      token,
+      `${CAL_LIST}/${encodeURIComponent(body.calendarId)}?colorRgbFormat=true`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          backgroundColor: bg,
+          foregroundColor: foregroundFor(bg),
+        }),
+      }
+    );
+    if (!r.res.ok) return failJson(r.res, "색상 수정 실패");
   }
   return NextResponse.json({ ok: true });
 }
@@ -124,21 +127,21 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const { calendarId } = (await request.json()) as { calendarId?: string };
   if (!calendarId) {
     return NextResponse.json({ error: "calendarId 필수" }, { status: 400 });
   }
 
-  const res = await fetch(`${GCAL}/${encodeURIComponent(calendarId)}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${auth.token}` },
-  });
+  const { res } = await gfetch(
+    supabase,
+    auth.token,
+    `${GCAL}/${encodeURIComponent(calendarId)}`,
+    { method: "DELETE" }
+  );
   if (!res.ok && res.status !== 410) {
-    return NextResponse.json(
-      { error: "카테고리 삭제 실패", status: res.status },
-      { status: res.status }
-    );
+    return failJson(res, "카테고리 삭제 실패");
   }
   return NextResponse.json({ ok: true });
 }

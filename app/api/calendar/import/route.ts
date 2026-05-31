@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProviderToken } from "@/lib/auth-token";
+import { createClient } from "@/lib/supabase/server";
+import { gfetch } from "@/lib/google-fetch";
 import { parseIcs, type IcsEvent } from "@/lib/ics";
 
 const TIME_ZONE = "Asia/Seoul";
@@ -13,7 +15,6 @@ function addOneDay(dateStr: string): string {
   return `${dt.getUTCFullYear()}-${p(dt.getUTCMonth() + 1)}-${p(dt.getUTCDate())}`;
 }
 
-// Google API용 이벤트 리소스 생성. events route의 buildEventResource와 동일 분기.
 function buildGoogleResource(ev: IcsEvent): Record<string, unknown> | null {
   const resource: Record<string, unknown> = { summary: ev.summary || "(제목 없음)" };
   if (ev.location) resource.location = ev.location;
@@ -33,6 +34,7 @@ function buildGoogleResource(ev: IcsEvent): Record<string, unknown> | null {
 export async function POST(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const body = (await request.json()) as {
     calendarId?: string;
@@ -46,12 +48,10 @@ export async function POST(request: NextRequest) {
   }
 
   const parsed = parseIcs(body.icsText);
-  const headers = {
-    Authorization: `Bearer ${auth.token}`,
-    "Content-Type": "application/json",
-  };
   const calId = encodeURIComponent(body.calendarId);
+  const json = { "Content-Type": "application/json" };
 
+  let token = auth.token;
   let created = 0;
   let updated = 0;
   let failed = 0;
@@ -65,54 +65,52 @@ export async function POST(request: NextRequest) {
       }
 
       if (ev.uid) {
-        // 기존 일정 매칭 시도 (iCalUID로 조회)
-        const lookup = await fetch(
-          `${GCAL}/${calId}/events?iCalUID=${encodeURIComponent(
-            ev.uid
-          )}&showDeleted=false&maxResults=1`,
-          { headers: { Authorization: `Bearer ${auth.token}` } }
+        const lookup = await gfetch(
+          supabase,
+          token,
+          `${GCAL}/${calId}/events?iCalUID=${encodeURIComponent(ev.uid)}&showDeleted=false&maxResults=1`
         );
-        if (lookup.ok) {
-          const { items } = (await lookup.json()) as {
+        token = lookup.token;
+        if (lookup.res.ok) {
+          const { items } = (await lookup.res.json()) as {
             items?: Array<{ id: string }>;
           };
           if (items && items.length > 0) {
-            // 업데이트
-            const patchRes = await fetch(
+            const patch = await gfetch(
+              supabase,
+              token,
               `${GCAL}/${calId}/events/${encodeURIComponent(items[0].id)}`,
-              { method: "PATCH", headers, body: JSON.stringify(resource) }
+              { method: "PATCH", headers: json, body: JSON.stringify(resource) }
             );
-            if (patchRes.ok) {
-              updated++;
-            } else {
-              failed++;
-            }
+            token = patch.token;
+            if (patch.res.ok) updated++;
+            else failed++;
             continue;
           }
         }
-        // 없음 → import (iCalUID 보존)
-        const withUid = { ...resource, iCalUID: ev.uid };
-        const importRes = await fetch(
+        const importRes = await gfetch(
+          supabase,
+          token,
           `${GCAL}/${calId}/events/import`,
-          { method: "POST", headers, body: JSON.stringify(withUid) }
+          {
+            method: "POST",
+            headers: json,
+            body: JSON.stringify({ ...resource, iCalUID: ev.uid }),
+          }
         );
-        if (importRes.ok) {
-          created++;
-        } else {
-          failed++;
-        }
+        token = importRes.token;
+        if (importRes.res.ok) created++;
+        else failed++;
       } else {
-        // UID 없음 → insert (Google이 UID 자동 부여)
-        const insertRes = await fetch(`${GCAL}/${calId}/events`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(resource),
-        });
-        if (insertRes.ok) {
-          created++;
-        } else {
-          failed++;
-        }
+        const insertRes = await gfetch(
+          supabase,
+          token,
+          `${GCAL}/${calId}/events`,
+          { method: "POST", headers: json, body: JSON.stringify(resource) }
+        );
+        token = insertRes.token;
+        if (insertRes.res.ok) created++;
+        else failed++;
       }
     } catch {
       failed++;

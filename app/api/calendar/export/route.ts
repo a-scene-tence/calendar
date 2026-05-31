@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProviderToken } from "@/lib/auth-token";
+import { createClient } from "@/lib/supabase/server";
+import { gfetch, readGoogleError } from "@/lib/google-fetch";
 import { buildIcs, type IcsEvent } from "@/lib/ics";
 
 const GCAL = "https://www.googleapis.com/calendar/v3/calendars";
@@ -91,27 +93,30 @@ function googleToIcs(items: GoogleEvent[]): IcsEvent[] {
 export async function GET(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const calendarId = request.nextUrl.searchParams.get("calendarId");
   if (!calendarId) {
     return NextResponse.json({ error: "calendarId 필수" }, { status: 400 });
   }
 
-  const headers = { Authorization: `Bearer ${auth.token}` };
+  let token = auth.token;
 
   // 카테고리 이름 조회(파일명용). 실패해도 export는 진행.
   let calendarName = "calendar";
   try {
-    const metaRes = await fetch(
-      `${CAL_LIST}/${encodeURIComponent(calendarId)}`,
-      { headers }
+    const meta = await gfetch(
+      supabase,
+      token,
+      `${CAL_LIST}/${encodeURIComponent(calendarId)}`
     );
-    if (metaRes.ok) {
-      const meta = (await metaRes.json()) as {
+    token = meta.token;
+    if (meta.res.ok) {
+      const m = (await meta.res.json()) as {
         summary?: string;
         summaryOverride?: string;
       };
-      calendarName = meta.summaryOverride ?? meta.summary ?? calendarName;
+      calendarName = m.summaryOverride ?? m.summary ?? calendarName;
     }
   } catch {
     // 무시 — 기본 이름 사용
@@ -128,17 +133,20 @@ export async function GET(request: NextRequest) {
     });
     if (pageToken) params.set("pageToken", pageToken);
 
-    const res = await fetch(
-      `${GCAL}/${encodeURIComponent(calendarId)}/events?${params}`,
-      { headers }
+    const r = await gfetch(
+      supabase,
+      token,
+      `${GCAL}/${encodeURIComponent(calendarId)}/events?${params}`
     );
-    if (!res.ok) {
+    token = r.token;
+    if (!r.res.ok) {
+      const { status, message } = await readGoogleError(r.res);
       return NextResponse.json(
-        { error: "이벤트 조회 실패", status: res.status },
-        { status: res.status }
+        { error: "이벤트 조회 실패", googleStatus: status, googleMessage: message },
+        { status }
       );
     }
-    const json = (await res.json()) as {
+    const json = (await r.res.json()) as {
       items?: GoogleEvent[];
       nextPageToken?: string;
     };

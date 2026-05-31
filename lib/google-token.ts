@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function refreshGoogleToken(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  opts: { force?: boolean } = {}
 ): Promise<string | null> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -16,6 +17,7 @@ export async function refreshGoogleToken(
 
   const now = Date.now();
   if (
+    !opts.force &&
     row.google_access_token &&
     row.access_expires_at &&
     new Date(row.access_expires_at).getTime() - now > 60_000

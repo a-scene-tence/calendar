@@ -17,10 +17,14 @@ const PRESET_COLORS = [
 
 export default function CalendarManageModal({
   categories,
+  categoryOrder,
+  onOrderChange,
   onClose,
   onChanged,
 }: {
   categories: ManageCalendar[];
+  categoryOrder: string[];
+  onOrderChange: (newOrder: string[]) => void;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -57,7 +61,14 @@ export default function CalendarManageModal({
         return false;
       }
       if (!res.ok) {
-        setError("요청에 실패했습니다.");
+        const j = (await res.json().catch(() => ({}))) as {
+          googleStatus?: number;
+          googleMessage?: string;
+          error?: string;
+        };
+        const code = j.googleStatus ?? res.status;
+        const msg = j.googleMessage || j.error || "요청에 실패했습니다.";
+        setError(`(${code}) ${msg}`);
         return false;
       }
       onChanged();
@@ -97,6 +108,17 @@ export default function CalendarManageModal({
     if (ok) setEditingId(null);
   }
 
+  function moveCategory(index: number, delta: -1 | 1) {
+    const target = index + delta;
+    if (target < 0 || target >= categories.length) return;
+    const ids = categories.map((c) => c.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    // 기존 categoryOrder에 없던 항목(공유받은 캘린더 등)은 끝에 보존
+    const existing = new Set(categoryOrder);
+    const tail = categoryOrder.filter((id) => !ids.includes(id) && existing.has(id));
+    onOrderChange([...ids, ...tail]);
+  }
+
   async function remove(c: ManageCalendar) {
     if (
       !confirm(
@@ -129,7 +151,14 @@ export default function CalendarManageModal({
         return;
       }
       if (!res.ok) {
-        setIoError("내보내기 실패");
+        const j = (await res.json().catch(() => ({}))) as {
+          googleStatus?: number;
+          googleMessage?: string;
+          error?: string;
+        };
+        const code = j.googleStatus ?? res.status;
+        const msg = j.googleMessage || j.error || "내보내기 실패";
+        setIoError(`(${code}) ${msg}`);
         return;
       }
       const blob = await res.blob();
@@ -185,7 +214,14 @@ export default function CalendarManageModal({
         return;
       }
       if (!res.ok) {
-        setIoError("가져오기 실패");
+        const j = (await res.json().catch(() => ({}))) as {
+          googleStatus?: number;
+          googleMessage?: string;
+          error?: string;
+        };
+        const code = j.googleStatus ?? res.status;
+        const msg = j.googleMessage || j.error || "가져오기 실패";
+        setIoError(`(${code}) ${msg}`);
         return;
       }
       const json = (await res.json()) as {
@@ -244,7 +280,7 @@ export default function CalendarManageModal({
           <p className="text-gray-400 text-sm py-2">관리할 수 있는 카테고리가 없습니다.</p>
         ) : (
           <ul className="space-y-1">
-            {categories.map((c) =>
+            {categories.map((c, idx) =>
               editingId === c.id ? (
                 <li
                   key={c.id}
@@ -274,7 +310,7 @@ export default function CalendarManageModal({
               ) : (
                 <li
                   key={c.id}
-                  className="flex items-center gap-2 p-2.5 rounded-xl transition hover:bg-gray-50"
+                  className="flex items-center gap-1.5 p-2.5 rounded-xl transition hover:bg-gray-50"
                 >
                   <span
                     className="h-3.5 w-3.5 rounded-full shrink-0"
@@ -284,16 +320,34 @@ export default function CalendarManageModal({
                   <span className="flex-1 min-w-0 truncate text-sm font-medium text-gray-800">
                     {c.name}
                   </span>
+                  <div className="flex items-center shrink-0">
+                    <button
+                      onClick={() => moveCategory(idx, -1)}
+                      disabled={idx === 0}
+                      className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
+                      aria-label="위로"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => moveCategory(idx, 1)}
+                      disabled={idx === categories.length - 1}
+                      className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
+                      aria-label="아래로"
+                    >
+                      ↓
+                    </button>
+                  </div>
                   <button
                     onClick={() => startEdit(c)}
-                    className="text-gray-500 text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition hover:bg-gray-100 active:scale-95"
+                    className="text-gray-500 text-xs font-medium shrink-0 px-2 py-1.5 rounded-lg transition hover:bg-gray-100 active:scale-95"
                   >
                     수정
                   </button>
                   <button
                     onClick={() => remove(c)}
                     disabled={busy}
-                    className="text-red-500 text-xs font-medium shrink-0 px-2.5 py-1.5 rounded-lg transition hover:bg-red-50 active:scale-95 disabled:opacity-50"
+                    className="text-red-500 text-xs font-medium shrink-0 px-2 py-1.5 rounded-lg transition hover:bg-red-50 active:scale-95 disabled:opacity-50"
                   >
                     삭제
                   </button>

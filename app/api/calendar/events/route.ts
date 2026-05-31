@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProviderToken } from "@/lib/auth-token";
+import { createClient } from "@/lib/supabase/server";
+import { gfetch, readGoogleError } from "@/lib/google-fetch";
 
 const TIME_ZONE = "Asia/Seoul";
 const GCAL = "https://www.googleapis.com/calendar/v3/calendars";
@@ -14,9 +16,9 @@ function addOneDay(dateStr: string): string {
 type EventBody = {
   summary?: string;
   allDay?: boolean;
-  date?: string; // YYYY-MM-DD (allDay)
-  endDate?: string; // YYYY-MM-DD inclusive (allDay, optional)
-  startDateTime?: string; // YYYY-MM-DDTHH:mm:ss (timed)
+  date?: string;
+  endDate?: string;
+  startDateTime?: string;
   endDateTime?: string;
   location?: string;
   description?: string;
@@ -41,9 +43,19 @@ function buildEventResource(body: EventBody) {
   return resource;
 }
 
+async function failJson(res: Response, fallback: string) {
+  const { status, message } = await readGoogleError(res);
+  console.warn(`[events] ${fallback}: ${status} ${message}`);
+  return NextResponse.json(
+    { error: fallback, googleStatus: status, googleMessage: message },
+    { status }
+  );
+}
+
 export async function POST(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const body = await request.json();
   const { calendarId, ...rest } = body as EventBody & { calendarId?: string };
@@ -58,29 +70,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "날짜/시간이 올바르지 않습니다." }, { status: 400 });
   }
 
-  const res = await fetch(
+  const { res } = await gfetch(
+    supabase,
+    auth.token,
     `${GCAL}/${encodeURIComponent(calendarId)}/events`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(resource),
     }
   );
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: "일정 추가 실패", status: res.status },
-      { status: res.status }
-    );
-  }
+  if (!res.ok) return failJson(res, "일정 추가 실패");
   return NextResponse.json({ event: await res.json() });
 }
 
 export async function PATCH(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const body = await request.json();
   const { calendarId, eventId, ...rest } = body as EventBody & {
@@ -98,31 +105,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "날짜/시간이 올바르지 않습니다." }, { status: 400 });
   }
 
-  const res = await fetch(
-    `${GCAL}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(
-      eventId
-    )}`,
+  const { res } = await gfetch(
+    supabase,
+    auth.token,
+    `${GCAL}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(resource),
     }
   );
-  if (!res.ok) {
-    return NextResponse.json(
-      { error: "일정 수정 실패", status: res.status },
-      { status: res.status }
-    );
-  }
+  if (!res.ok) return failJson(res, "일정 수정 실패");
   return NextResponse.json({ event: await res.json() });
 }
 
 export async function DELETE(request: NextRequest) {
   const auth = await getProviderToken();
   if ("error" in auth) return auth.error;
+  const supabase = await createClient();
 
   const { calendarId, eventId } = (await request.json()) as {
     calendarId?: string;
@@ -135,21 +135,12 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  const res = await fetch(
-    `${GCAL}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(
-      eventId
-    )}`,
-    {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${auth.token}` },
-    }
+  const { res } = await gfetch(
+    supabase,
+    auth.token,
+    `${GCAL}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: "DELETE" }
   );
-  // Google은 삭제 성공 시 204
-  if (!res.ok && res.status !== 410) {
-    return NextResponse.json(
-      { error: "일정 삭제 실패", status: res.status },
-      { status: res.status }
-    );
-  }
+  if (!res.ok && res.status !== 410) return failJson(res, "일정 삭제 실패");
   return NextResponse.json({ ok: true });
 }
