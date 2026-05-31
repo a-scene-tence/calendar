@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import EventFormModal, {
   EventInitial,
   WritableCalendar,
@@ -63,7 +63,6 @@ type SearchResult = {
 };
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const TAB_ORDER = ["할일", "한일", "생활", "기타"];
 const MAX_LANES = 3; // 칸당 최대 막대 레인 수(초과분은 +N)
 const HOLIDAY_COLOR = "#ef4444"; // 공휴일 막대색(red-500)
 
@@ -74,6 +73,7 @@ export default function CalendarMonth() {
     month: today.getMonth() + 1, // 1-12
   });
   const [calendars, setCalendars] = useState<Calendar[]>([]);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [selectMode, setSelectMode] = useState<"single" | "multi">("single");
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
   const [manageOpen, setManageOpen] = useState(false);
@@ -95,6 +95,7 @@ export default function CalendarMonth() {
         if (!r.ok) return setStatus("error");
         const data = await r.json();
         setCalendars(data.calendars ?? []);
+        if (Array.isArray(data.categoryOrder)) setCategoryOrder(data.categoryOrder);
         setStatus("ok");
       })
       .catch(() => setStatus("error"));
@@ -104,15 +105,17 @@ export default function CalendarMonth() {
     load();
   }, [load]);
 
-  // 카테고리(공휴일 제외) 탭 — TAB_ORDER 순서로 정렬, 나머지는 뒤에
+  // 카테고리(공휴일 제외) — 사용자 지정 순서(categoryOrder) 우선, 나머지는 Google 기본 순.
   const categoryCalendars = useMemo(() => {
     const cats = calendars.filter((c) => !c.isHoliday);
+    const idx = new Map(categoryOrder.map((id, i) => [id, i]));
     return cats.slice().sort((a, b) => {
-      const ia = TAB_ORDER.indexOf(a.name);
-      const ib = TAB_ORDER.indexOf(b.name);
-      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      const ia = idx.has(a.id) ? (idx.get(a.id) as number) : Infinity;
+      const ib = idx.has(b.id) ? (idx.get(b.id) as number) : Infinity;
+      if (ia !== ib) return ia - ib;
+      return 0;
     });
-  }, [calendars]);
+  }, [calendars, categoryOrder]);
 
   const holidayCalendars = useMemo(
     () => calendars.filter((c) => c.isHoliday),
@@ -219,6 +222,22 @@ export default function CalendarMonth() {
         return next;
       });
     }
+  }
+
+  // 사용자 지정 카테고리 순서 갱신(낙관적: 즉시 반영 + 디바운스 백그라운드 저장)
+  const orderSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function handleOrderChange(newOrder: string[]) {
+    setCategoryOrder(newOrder);
+    if (orderSaveTimer.current) clearTimeout(orderSaveTimer.current);
+    orderSaveTimer.current = setTimeout(() => {
+      fetch("/api/user/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categoryOrder: newOrder }),
+      }).catch(() => {
+        // 실패 시 다음 load에서 서버 값으로 정합화
+      });
+    }, 250);
   }
 
   const gridDays = useMemo(
@@ -787,6 +806,8 @@ export default function CalendarMonth() {
       {manageOpen && (
         <CalendarManageModal
           categories={ownerCategories}
+          categoryOrder={categoryOrder}
+          onOrderChange={handleOrderChange}
           onClose={() => setManageOpen(false)}
           onChanged={load}
         />

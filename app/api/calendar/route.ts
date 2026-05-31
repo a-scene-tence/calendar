@@ -218,5 +218,21 @@ export async function GET(request: NextRequest) {
     })
   );
 
-  return NextResponse.json({ calendars: grouped });
+  // 사용자 지정 카테고리 순서 (컬럼 미적용 환경에서도 안전)
+  let categoryOrder: string[] = [];
+  try {
+    const { data: prefs } = await supabase
+      .from("user_tokens")
+      .select("category_order")
+      .maybeSingle();
+    if (Array.isArray(prefs?.category_order)) {
+      categoryOrder = (prefs.category_order as unknown[]).filter(
+        (x): x is string => typeof x === "string"
+      );
+    }
+  } catch {
+    // 무시 — 빈 배열
+  }
+
+  return NextResponse.json({ calendars: grouped, categoryOrder });
 }
