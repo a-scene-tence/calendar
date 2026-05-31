@@ -11,6 +11,7 @@
 
 **배포 URL**: https://personal-dashboard.skynjy.workers.dev (workers.dev 무료 서브도메인,
 Google OAuth External + Testing 모드 — 공유 대상 Gmail을 사전에 Test users로 등록 필요).
+Vercel 자동 배포(git push 연동)도 병행 가능 — 도메인은 연결 후 기입. 배포 절차는 `DEPLOY.md` 참고.
 
 > 가계부 기능은 제거됨(2026-05: 캘린더 전용 앱으로 전환). `spec.md`의 가계부 관련 내용은 더 이상
 > 유효하지 않음. Supabase는 인증과 Google refresh_token 저장(`user_tokens`)에만 사용.
@@ -37,6 +38,7 @@ Google OAuth External + Testing 모드 — 공유 대상 Gmail을 사전에 Test
 | 린트 | `npm run lint` |
 | Cloudflare 프리뷰 | `npm run preview` (로컬 Workers 에뮬레이션) |
 | Cloudflare 배포 | `npm run deploy` (로컬 PC에서 실행 — 웹 세션은 cloudflare.com 차단됨) |
+| Vercel 배포 | git push 시 자동(대시보드 연결). 수동: `vercel --prod`. 절차는 `DEPLOY.md` |
 | Supabase 마이그레이션 | `npx supabase db push` (Supabase CLI 설정 후) |
 | Cloudflare 시크릿 등록 | `wrangler secret put <KEY>` |
 
@@ -54,6 +56,7 @@ Google OAuth External + Testing 모드 — 공유 대상 Gmail을 사전에 Test
 | 2026-05-26 | Cloudflare 배포 불가(`opennextjs-cloudflare build`/`deploy`) | `open-next.config.ts` 누락 + `wrangler.jsonc`가 Pages용(`pages_build_output_dir`)이라 어댑터 v1 Workers 모델과 불일치 | `open-next.config.ts` 추가 + `wrangler.jsonc`를 `main`+`assets`(Workers)로 교체 | `@opennextjs/cloudflare` v1은 Workers 배포(`wrangler deploy`) + `open-next.config.ts` 필수. Pages 설정 사용 금지 |
 | 2026-05-28 | Claude Code 웹 세션에서 `wrangler whoami/deploy` 호출 시 `Host not in allowlist` 403 | 이 환경의 egress 프록시(Anthropic sandbox)가 `api.cloudflare.com`/`*.cloudflare.com` 호스트 전체를 차단 | `npm run deploy`는 로컬 PC 또는 네트워크 정책이 완화된 세션에서 실행 | `wrangler` 명령은 환경 네트워크 정책에 의존. 웹 세션에서 배포 시 `api.cloudflare.com` 허용 정책 사용 또는 로컬 실행 |
 | 2026-05-31 | "열 때마다 다시 로그인 필요"(`세션이 만료되었습니다(Google 토큰 만료)`) | Supabase는 JWT만 자동 갱신 — `session.provider_token`(Google access_token)은 발급 시점 값 그대로 ~1시간 후 stale. `refreshGoogleToken`이 매 요청마다 캐시 없이 raw refresh 시도 → 실패 시 401 | `user_tokens`에 `google_access_token`·`access_expires_at` 캐시 컬럼 추가(마이그레이션), `refreshGoogleToken`이 만료 60초 전까지 캐시 반환 + 갱신 시 저장. API 라우트는 캐시 함수 우선 호출(provider_token은 폴백) | provider 토큰은 Supabase가 갱신하지 않음 — 앱이 직접 관리. OAuth Testing 모드는 refresh_token TTL 7일이라 주기적 재로그인 불가피(해소하려면 Google Verified 등록) |
+| 2026-05-31 | "7일마다 재로그인"이 Supabase 백업으로 해결될 거라 오해 | refresh_token은 이미 `user_tokens`에 저장(백업)돼 있음 — 7일 만료는 Google **OAuth Testing 모드** 정책(서버측 refresh_token 무효화)이 원인이지 토큰 분실이 아님 | Google 콘솔에서 동의화면을 **Production으로 게시**(미인증이면 경고 1회 통과) + 전환 후 1회 재로그인으로 영구 refresh_token 재발급. 절차는 `DEPLOY.md` §5 | 토큰 만료 ≠ 토큰 분실. 게시 상태(Testing/Production)가 TTL을 결정. Vercel/CF 배포 플랫폼 전환과는 무관 |
 
 ### 알려진 주의점 (시작 전 메모)
 - **Next.js on Cloudflare**: Node 전용 API 사용 시 edge 런타임에서 실패할 수 있음.
