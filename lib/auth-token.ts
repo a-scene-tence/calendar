@@ -21,10 +21,8 @@ export async function getProviderToken(): Promise<TokenResult> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  let token = session?.provider_token ?? null;
-  if (!token) {
-    token = await refreshGoogleToken(supabase);
-  }
+  let token = await refreshGoogleToken(supabase);
+  if (!token) token = session?.provider_token ?? null;
   if (!token) {
     return {
       error: NextResponse.json(

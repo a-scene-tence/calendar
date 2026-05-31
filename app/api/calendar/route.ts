@@ -27,16 +27,15 @@ export async function GET(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // 세션의 provider_token 사용, 없으면 DB refresh_token으로 갱신 시도
-  let token = session?.provider_token ?? null;
+  // 캐시된 refresh 토큰을 우선 사용(만료 임박 시 자동 갱신),
+  // 실패 시 세션의 provider_token(최초 로그인 1시간 이내)으로 폴백.
+  let token = await refreshGoogleToken(supabase);
+  if (!token) token = session?.provider_token ?? null;
   if (!token) {
-    token = await refreshGoogleToken(supabase);
-    if (!token) {
-      return NextResponse.json(
-        { error: "No Google token. Re-login required." },
-        { status: 401 }
-      );
-    }
+    return NextResponse.json(
+      { error: "No Google token. Re-login required." },
+      { status: 401 }
+    );
   }
 
   // 표시할 월: ?year=&month=(1-12), 없으면 현재 월. 그리드 앞뒤 주를 위해 ±7일 패딩.
