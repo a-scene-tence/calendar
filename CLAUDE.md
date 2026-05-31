@@ -39,7 +39,7 @@ Vercel 자동 배포(git push 연동)도 병행 가능 — 도메인은 연결 �
 | Cloudflare 프리뷰 | `npm run preview` (로컬 Workers 에뮬레이션) |
 | Cloudflare 배포 | `npm run deploy` (로컬 PC에서 실행 — 웹 세션은 cloudflare.com 차단됨) |
 | Vercel 배포 | git push 시 자동(대시보드 연결). 수동: `vercel --prod`. 절차는 `DEPLOY.md` |
-| Supabase 마이그레이션 | `npx supabase db push` (Supabase CLI 설정 후) |
+| Supabase 마이그레이션 | Dashboard SQL Editor 권장(`DEPLOY.md` §6). CLI는 `link --project-ref msjnyyoxuhltmxapxvms` 후 `db push` |
 | Cloudflare 시크릿 등록 | `wrangler secret put <KEY>` |
 
 ## 오류/버그 학습 로그

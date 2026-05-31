@@ -103,13 +103,45 @@ Production이어도 다음에는 refresh_token이 끊긴다: 사용자가 액세
 
 ---
 
-## 6. 데이터베이스 마이그레이션
+## 6. 데이터베이스 마이그레이션 (Dashboard SQL Editor 권장)
 
-`user_tokens`에 access_token 캐시 컬럼을 추가한 마이그레이션이 있다. 로컬 PC에서 1회 적용:
+저장소에 `supabase/config.toml`이 없어 곧바로 `npx supabase db push`를 실행하면
+**`Cannot find project ref`** 오류가 난다. CLI를 설정하지 않아도 되는 **대시보드 직접 실행** 경로를
+사용한다(현재까지 마이그레이션 2개로 적어 자동화 이득보다 단순함이 큼).
+
+### 절차
+1. https://supabase.com/dashboard → 프로젝트 `msjnyyoxuhltmxapxvms` 선택
+   (project ref는 `wrangler.jsonc`의 Supabase URL 서브도메인에서 확인 가능).
+2. 좌측 **SQL Editor → New query**.
+3. `supabase/migrations/20260531000001_user_tokens_access_cache.sql` 내용을 그대로 붙여넣기:
+   ```sql
+   ALTER TABLE user_tokens
+     ADD COLUMN IF NOT EXISTS google_access_token text,
+     ADD COLUMN IF NOT EXISTS access_expires_at timestamptz;
+   ```
+4. **Run** (또는 ⌘/Ctrl+Enter). `IF NOT EXISTS` 덕분에 재실행해도 안전.
+5. 검증 쿼리:
+   ```sql
+   SELECT column_name
+     FROM information_schema.columns
+    WHERE table_name = 'user_tokens'
+    ORDER BY ordinal_position;
+   ```
+   `google_access_token`, `access_expires_at` 두 줄이 보이면 성공.
+
+> 미적용이어도 앱은 동작한다 — `refreshGoogleToken`의 캐시 update는 try/catch로 감싸져 컬럼이 없으면
+> 조용히 건너뜀(`lib/google-token.ts`). 다만 캐시 효과가 사라져 매 요청마다 Google API에 refresh 요청이
+> 가는 비효율만 남는다.
+
+### (참고) 향후 CLI 자동화가 필요해지면
+DB 비밀번호를 알고 있을 때만 1회 설정 — Codespaces에서도 동작:
 ```bash
+npx supabase login                                       # device-code 브라우저 인증
+npx supabase link --project-ref msjnyyoxuhltmxapxvms     # DB 비밀번호 입력
 npx supabase db push
 ```
-적용 파일: `supabase/migrations/20260531000001_user_tokens_access_cache.sql`
+`link` 후 저장소 루트에 `supabase/config.toml`이 생겨 다음부터 `db push`만으로 동작.
+DB 비밀번호 분실 시 Dashboard → Project Settings → Database → reset.
 
 ---
 
