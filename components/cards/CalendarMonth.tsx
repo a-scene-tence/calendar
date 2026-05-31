@@ -347,15 +347,15 @@ export default function CalendarMonth() {
     <>
       <Card>
         {/* 헤더: 년/월 드롭다운 이동 */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+          <div className="flex items-center gap-1">
             <select
               value={viewDate.year}
               onChange={(e) => {
                 setSelectedDay(null);
                 setViewDate((v) => ({ ...v, year: Number(e.target.value) }));
               }}
-              className="rounded-xl border border-transparent bg-gray-50 px-3 py-1.5 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
+              className="rounded-xl border border-transparent bg-gray-50 px-2.5 py-1 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
               aria-label="연도 선택"
             >
               {Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i).map(
@@ -372,7 +372,7 @@ export default function CalendarMonth() {
                 setSelectedDay(null);
                 setViewDate((v) => ({ ...v, month: Number(e.target.value) }));
               }}
-              className="rounded-xl border border-transparent bg-gray-50 px-3 py-1.5 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
+              className="rounded-xl border border-transparent bg-gray-50 px-2.5 py-1 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
               aria-label="월 선택"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
@@ -382,31 +382,31 @@ export default function CalendarMonth() {
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-1 ml-auto">
+          <div className="flex items-center gap-0.5 ml-auto">
             {canWrite && (
               <button
                 onClick={() => openCreate(selectedDay)}
-                className="px-3 py-1.5 mr-1 text-brand bg-brand-50 hover:bg-brand-100 rounded-xl text-xs font-semibold transition active:scale-95"
+                className="px-2.5 py-1 mr-0.5 text-brand bg-brand-50 hover:bg-brand-100 rounded-xl text-xs font-semibold transition active:scale-95"
               >
                 + 일정
               </button>
             )}
             <button
               onClick={goPrev}
-              className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
+              className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
               aria-label="이전 달"
             >
               ‹
             </button>
             <button
               onClick={goToday}
-              className="px-3 py-1.5 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition active:scale-95"
+              className="px-2.5 py-1 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition active:scale-95"
             >
               오늘
             </button>
             <button
               onClick={goNext}
-              className="h-8 w-8 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
+              className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
               aria-label="다음 달"
             >
               ›
@@ -415,7 +415,7 @@ export default function CalendarMonth() {
         </div>
 
         {/* 검색 */}
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-2.5 flex items-center gap-1.5">
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -423,18 +423,18 @@ export default function CalendarMonth() {
               if (e.key === "Enter") runSearch(searchInput);
             }}
             placeholder="일정 검색 (제목·메모, 전체 기간)"
-            className="flex-1 min-w-0 rounded-xl border border-transparent bg-gray-50 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15"
+            className="flex-1 min-w-0 rounded-xl border border-transparent bg-gray-50 px-3 py-2 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15"
           />
           <button
             onClick={() => runSearch(searchInput)}
-            className="px-4 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95"
+            className="px-3 py-2 rounded-xl bg-brand text-white text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95"
           >
             검색
           </button>
           {searchQuery && (
             <button
               onClick={clearSearch}
-              className="px-3 py-2.5 rounded-xl bg-gray-100 text-gray-500 text-sm shrink-0 transition hover:bg-gray-200 active:scale-95"
+              className="px-2.5 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm shrink-0 transition hover:bg-gray-200 active:scale-95"
               aria-label="검색 닫기"
             >
               ✕
@@ -503,70 +503,66 @@ export default function CalendarMonth() {
           </div>
         ) : (
           <>
-        {/* 카테고리: 단일/다중 모드 + 표시 토글 + 관리 */}
+        {/* 카테고리: 단일/다중 + 칩 + 관리 (한 줄 가로 스크롤) */}
         {chipCalendars.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2.5">
-              <div className="inline-flex p-0.5 rounded-xl bg-gray-100 text-xs">
-                {(["single", "multi"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => changeMode(m)}
-                    className={`px-3 py-1 rounded-lg font-semibold transition active:scale-95 ${
-                      selectMode === m
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-500"
-                    }`}
-                    aria-pressed={selectMode === m}
-                  >
-                    {m === "single" ? "단일" : "다중"}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setManageOpen(true)}
-                className="ml-auto px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-xl text-xs font-semibold transition active:scale-95"
-              >
-                카테고리 관리
-              </button>
+          <div className="mb-2.5 -mx-3 px-3 sm:-mx-5 sm:px-5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="inline-flex p-0.5 rounded-xl bg-gray-100 text-xs shrink-0">
+              {(["single", "multi"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => changeMode(m)}
+                  className={`px-2.5 py-0.5 rounded-lg font-semibold transition active:scale-95 ${
+                    selectMode === m
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500"
+                  }`}
+                  aria-pressed={selectMode === m}
+                >
+                  {m === "single" ? "단일" : "다중"}
+                </button>
+              ))}
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {chipCalendars.map((cal) => {
-                const on = visibleIds.has(cal.id);
-                const color = cal.color;
-                return (
-                  <button
-                    key={cal.id}
-                    onClick={() => toggleChip(cal)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition active:scale-95 ${
-                      on
-                        ? "border-transparent shadow-sm"
-                        : "border-transparent bg-gray-100 text-gray-500"
-                    }`}
-                    style={
-                      on
-                        ? { backgroundColor: color, color: barTextColor(color) }
-                        : undefined
-                    }
-                    aria-pressed={on}
-                  >
-                    {!on && (
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: color }}
-                        aria-hidden
-                      />
-                    )}
-                    <span className="truncate max-w-[100px]">{cal.name}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {chipCalendars.map((cal) => {
+              const on = visibleIds.has(cal.id);
+              const color = cal.color;
+              return (
+                <button
+                  key={cal.id}
+                  onClick={() => toggleChip(cal)}
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition active:scale-95 ${
+                    on
+                      ? "border-transparent shadow-sm"
+                      : "border-transparent bg-gray-100 text-gray-500"
+                  }`}
+                  style={
+                    on
+                      ? { backgroundColor: color, color: barTextColor(color) }
+                      : undefined
+                  }
+                  aria-pressed={on}
+                >
+                  {!on && (
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: color }}
+                      aria-hidden
+                    />
+                  )}
+                  <span className="truncate max-w-[120px]">{cal.name}</span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setManageOpen(true)}
+              className="shrink-0 ml-1 px-2.5 py-1 text-gray-600 hover:bg-gray-100 rounded-full text-xs font-semibold transition active:scale-95"
+            >
+              관리
+            </button>
           </div>
         )}
 
         {/* 요일 헤더 (일=빨강, 토=파랑) */}
-        <div className="grid grid-cols-7 text-center text-[11px] font-semibold mb-1.5">
+        <div className="grid grid-cols-7 text-center text-[11px] font-semibold mb-1">
           {WEEKDAYS.map((w, i) => (
             <div
               key={w}
@@ -618,10 +614,10 @@ export default function CalendarMonth() {
                     <button
                       key={key}
                       onClick={() => setSelectedDay(key)}
-                      className="min-h-[92px] sm:min-h-[104px] bg-white pt-1.5 flex flex-col items-center transition-colors active:bg-gray-50"
+                      className="min-h-[68px] sm:min-h-[88px] bg-white pt-1 flex flex-col items-center transition-colors active:bg-gray-50"
                     >
                       <span
-                        className={`text-[11px] font-semibold leading-none flex items-center justify-center h-6 w-6 rounded-full transition ${
+                        className={`text-[10px] font-semibold leading-none flex items-center justify-center h-5 w-5 rounded-full transition ${
                           isToday
                             ? "bg-brand text-white"
                             : numberColor
@@ -651,9 +647,9 @@ export default function CalendarMonth() {
                 </div>
 
                 {/* 오버레이: 막대 레인 */}
-                <div className="absolute inset-x-0 top-[28px] bottom-0 px-px flex flex-col gap-0.5 pointer-events-none z-10">
+                <div className="absolute inset-x-0 top-[22px] bottom-0 px-px flex flex-col gap-px pointer-events-none z-10">
                   {week.lanes.map((segs, lane) => (
-                    <div key={lane} className="grid grid-cols-7 gap-px h-[16px]">
+                    <div key={lane} className="grid grid-cols-7 gap-px h-[14px]">
                       {segs.map((seg) => {
                         const { item, colStart, span, roundLeft, roundRight } = seg;
                         const label =
@@ -673,7 +669,7 @@ export default function CalendarMonth() {
                               backgroundColor: item.color,
                               color: barTextColor(item.color),
                             }}
-                            className={`pointer-events-auto h-full min-w-0 px-1.5 text-[10px] font-semibold leading-[16px] truncate text-left transition active:opacity-80 ${
+                            className={`pointer-events-auto h-full min-w-0 px-1 text-[9px] font-semibold leading-[14px] truncate text-left transition active:opacity-80 ${
                               roundLeft ? "rounded-l-md" : ""
                             } ${roundRight ? "rounded-r-md" : ""}`}
                             title={item.event.summary}
@@ -708,19 +704,19 @@ export default function CalendarMonth() {
         </div>
 
         {/* 선택한 날짜 상세 */}
-        <div className="mt-5">
+        <div className="mt-3 sm:mt-4">
           {!selectedDay ? (
-            <p className="text-gray-400 text-sm">날짜를 탭하면 일정이 표시됩니다.</p>
+            <p className="text-gray-400 text-xs">날짜를 탭하면 일정이 표시됩니다.</p>
           ) : (
             <div key={selectedDay} className="animate-pop">
-              <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center justify-between mb-1.5">
                 <h3 className="text-sm font-bold text-gray-900">
                   {formatDayHeading(selectedDay)}
                 </h3>
                 {canWrite && (
                   <button
                     onClick={() => openCreate(selectedDay)}
-                    className="text-xs font-semibold text-brand px-2.5 py-1 rounded-lg transition hover:bg-brand-50 active:scale-95"
+                    className="text-xs font-semibold text-brand px-2 py-0.5 rounded-lg transition hover:bg-brand-50 active:scale-95"
                   >
                     + 이 날 일정 추가
                   </button>
@@ -734,7 +730,7 @@ export default function CalendarMonth() {
                   {selectedHolidays.map((h) => (
                     <li
                       key={h.id}
-                      className="flex items-start gap-2 p-2 text-sm text-red-500"
+                      className="flex items-start gap-2 p-1.5 text-sm text-red-500"
                     >
                       <span className="w-12 shrink-0 text-[11px] font-semibold text-red-400 mt-0.5">
                         공휴일
@@ -746,7 +742,7 @@ export default function CalendarMonth() {
                     <li key={it.event.id}>
                       <button
                         onClick={() => openEdit(it.event)}
-                        className="w-full flex items-start gap-2 rounded-xl p-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
+                        className="w-full flex items-start gap-2 rounded-xl p-1.5 text-left transition hover:bg-gray-50 active:bg-gray-100"
                       >
                         <span className="text-[11px] font-semibold text-gray-500 mt-0.5 shrink-0 w-12">
                           {formatTime(it.event.start)}
@@ -801,7 +797,7 @@ export default function CalendarMonth() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100 p-5 sm:p-6">
+    <div className="bg-white rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100 p-3 sm:p-5">
       {children}
     </div>
   );
