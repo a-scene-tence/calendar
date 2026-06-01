@@ -91,6 +91,10 @@ export default function CalendarMonth() {
   const orderSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingOrderRef = useRef<string[] | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const monthCache = useRef<Map<string, Calendar[]>>(new Map());
+  const inflight = useRef<Set<string>>(new Set());
+  const viewDateRef = useRef(viewDate);
+  viewDateRef.current = viewDate;
 
   const flushOrderSave = useCallback(async () => {
     if (!orderSaveTimer.current || !pendingOrderRef.current) return;
@@ -115,39 +119,80 @@ export default function CalendarMonth() {
     }
   }, []);
 
-  const load = useCallback(
-    async (opts: { withOrder?: boolean } = {}) => {
-      // 사용자 지정 순서를 서버 값으로 동기화하기 전에 디바운스 중인 PUT을 먼저 반영.
-      if (opts.withOrder) await flushOrderSave();
-      setStatus("loading");
+  const fetchMonth = useCallback(
+    async (
+      year: number,
+      month: number,
+      opts: { withOrder?: boolean } = {}
+    ): Promise<{ ok: boolean; unauthorized?: boolean }> => {
+      const key = `${year}-${month}`;
+      if (inflight.current.has(key)) return { ok: true };
+      inflight.current.add(key);
       try {
-        const r = await fetch(
-          `/api/calendar?year=${viewDate.year}&month=${viewDate.month}`
-        );
-        if (r.status === 401) {
-          setStatus("unauthorized");
-          return;
-        }
-        if (!r.ok) {
-          setStatus("error");
-          return;
-        }
+        const r = await fetch(`/api/calendar?year=${year}&month=${month}`);
+        if (r.status === 401) return { ok: false, unauthorized: true };
+        if (!r.ok) return { ok: false };
         const data = await r.json();
-        setCalendars(data.calendars ?? []);
+        const cals: Calendar[] = data.calendars ?? [];
+        monthCache.current.set(key, cals);
         if (opts.withOrder && Array.isArray(data.categoryOrder)) {
           setCategoryOrder(data.categoryOrder);
         }
-        setStatus("ok");
+        const vd = viewDateRef.current;
+        if (vd.year === year && vd.month === month) {
+          setCalendars(cals);
+        }
+        return { ok: true };
       } catch {
-        setStatus("error");
+        return { ok: false };
+      } finally {
+        inflight.current.delete(key);
       }
     },
-    [viewDate.year, viewDate.month, flushOrderSave]
+    []
   );
 
+  const load = useCallback(
+    async (opts: { withOrder?: boolean } = {}) => {
+      if (opts.withOrder) await flushOrderSave();
+      const { year, month } = viewDateRef.current;
+      const key = `${year}-${month}`;
+      const cached = monthCache.current.get(key);
+      if (cached) {
+        // SWR: 캐시 즉시 표시 후 백그라운드 재검증.
+        setCalendars(cached);
+        setStatus("ok");
+        const res = await fetchMonth(year, month, opts);
+        if (res.unauthorized) setStatus("unauthorized");
+        return;
+      }
+      setStatus("loading");
+      const res = await fetchMonth(year, month, opts);
+      if (res.unauthorized) {
+        setStatus("unauthorized");
+        return;
+      }
+      if (!res.ok) {
+        setStatus("error");
+        return;
+      }
+      setStatus("ok");
+    },
+    [fetchMonth, flushOrderSave]
+  );
+
+  const didInitRef = useRef(false);
   useEffect(() => {
-    load({ withOrder: true });
-  }, [load]);
+    void load({ withOrder: !didInitRef.current });
+    didInitRef.current = true;
+    // 인접월 백그라운드 프리페치(상태는 건드리지 않음 — fetchMonth가 viewDate 가드).
+    const { year, month } = viewDate;
+    const prev = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
+    const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+    for (const { y, m } of [prev, next]) {
+      if (!monthCache.current.has(`${y}-${m}`)) void fetchMonth(y, m);
+    }
+  }, [viewDate, load, fetchMonth]);
 
   // 카테고리(공휴일 제외) — 사용자 지정 순서(categoryOrder) 우선, 나머지는 Google 기본 순.
   const categoryCalendars = useMemo(() => {
@@ -340,8 +385,16 @@ export default function CalendarMonth() {
   function openEdit(event: CalendarEvent) {
     setModal({ mode: "edit", initial: toEventInitial(event) });
   }
+  function invalidateAround(year: number, month: number) {
+    const prev = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
+    const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+    monthCache.current.delete(`${year}-${month}`);
+    monthCache.current.delete(`${prev.y}-${prev.m}`);
+    monthCache.current.delete(`${next.y}-${next.m}`);
+  }
   function onSaved() {
     setModal(null);
+    invalidateAround(viewDate.year, viewDate.month);
     load();
     if (searchQuery) runSearch(searchQuery);
   }
@@ -866,7 +919,10 @@ export default function CalendarMonth() {
           onOrderChange={handleOrderChange}
           orderSaveError={orderSaveError}
           onClose={() => setManageOpen(false)}
-          onChanged={() => load({ withOrder: true })}
+          onChanged={() => {
+            monthCache.current.clear();
+            void load({ withOrder: true });
+          }}
         />
       )}
     </>
