@@ -90,6 +90,7 @@ export default function CalendarMonth() {
 
   const orderSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingOrderRef = useRef<string[] | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const flushOrderSave = useCallback(async () => {
     if (!orderSaveTimer.current || !pendingOrderRef.current) return;
@@ -304,6 +305,21 @@ export default function CalendarMonth() {
     setViewDate(({ year, month }) =>
       month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }
     );
+  }
+  function onGridTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  }
+  function onGridTouchEnd(e: React.TouchEvent) {
+    const s = touchStart.current;
+    touchStart.current = null;
+    if (!s) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+    if (dx < 0) goNext();
+    else goPrev();
   }
   function goToday() {
     const t = new Date();
@@ -640,6 +656,8 @@ export default function CalendarMonth() {
         <div
           key={`${viewDate.year}-${viewDate.month}`}
           className="flex flex-col gap-px bg-gray-100 rounded-2xl overflow-hidden animate-month"
+          onTouchStart={onGridTouchStart}
+          onTouchEnd={onGridTouchEnd}
         >
           {weeks.map((week, wi) => {
             const hasOverflow = week.overflow.some((n) => n > 0);
