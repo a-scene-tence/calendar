@@ -1,11 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // 이미 로그인된 세션이 있으면 동의화면을 거치지 않고 바로 메인으로.
+  useEffect(() => {
+    if (!supabase) {
+      setChecking(false);
+      return;
+    }
+    let active = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!active) return;
+      if (data.user) router.replace("/");
+      else setChecking(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [supabase, router]);
 
   async function signInWithGoogle() {
     if (!supabase) return;
@@ -15,7 +35,9 @@ export default function LoginPage() {
       options: {
         scopes: "https://www.googleapis.com/auth/calendar",
         redirectTo: `${location.origin}/api/auth/callback`,
-        queryParams: { access_type: "offline", prompt: "consent" },
+        // prompt 미지정 — 이미 동의한 계정은 동의화면 없이 바로 통과.
+        // access_type=offline은 refresh_token 흐름을 위해 유지.
+        queryParams: { access_type: "offline" },
       },
     });
     if (error) setLoading(false);
@@ -26,7 +48,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 p-8 text-center animate-pop">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Do & Done" className="mx-auto mb-3 h-14 w-auto" />
-        {supabase ? (
+        {checking && supabase ? (
+          <p className="text-gray-400 text-sm mt-2">확인 중...</p>
+        ) : supabase ? (
           <>
             <p className="text-gray-500 text-sm mb-7">
               Google 계정으로 로그인하세요
