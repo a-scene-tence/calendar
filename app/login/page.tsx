@@ -43,6 +43,21 @@ export default function LoginPage() {
     if (error) setLoading(false);
   }
 
+  async function signInWithOtherAccount() {
+    if (!supabase) return;
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        scopes: "https://www.googleapis.com/auth/calendar",
+        redirectTo: `${location.origin}/api/auth/callback`,
+        // 계정 선택 화면을 강제로 띄워 다른 구글 계정으로 전환.
+        queryParams: { access_type: "offline", prompt: "select_account" },
+      },
+    });
+    if (error) setLoading(false);
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gray-50">
       <div className="w-full max-w-sm bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 p-8 text-center animate-pop">
@@ -61,6 +76,13 @@ export default function LoginPage() {
               className="w-full rounded-xl bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? "이동 중..." : "Google로 계속하기"}
+            </button>
+            <button
+              onClick={signInWithOtherAccount}
+              disabled={loading}
+              className="mt-3 text-xs text-gray-500 underline underline-offset-2 transition hover:text-gray-700 disabled:opacity-50"
+            >
+              다른 계정으로 로그인
             </button>
             <p className="text-[11px] text-gray-400 mt-5 leading-relaxed">
               현재 Google 검증 전(테스트 모드)입니다. 동의 화면에 &ldquo;확인되지 않은
