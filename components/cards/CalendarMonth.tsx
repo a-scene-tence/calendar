@@ -114,6 +114,40 @@ function clearPersistedCache() {
   }
 }
 
+// 카테고리 순서도 영속화 → 재시작 시 기본순으로 깜빡인 뒤 점프하지 않고
+// 첫 렌더부터 사용자 지정 순서로 표시(서버 값은 백그라운드로 동기화).
+const ORDER_CACHE_KEY = "calendarCategoryOrder:v1";
+
+function readPersistedOrder(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(ORDER_CACHE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePersistedOrder(order: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ORDER_CACHE_KEY, JSON.stringify(order));
+  } catch {
+    /* noop */
+  }
+}
+
+function clearPersistedOrder() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(ORDER_CACHE_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 export default function CalendarMonth() {
   const today = new Date();
   const [viewDate, setViewDate] = useState({
@@ -121,7 +155,9 @@ export default function CalendarMonth() {
     month: today.getMonth() + 1, // 1-12
   });
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>(() =>
+    readPersistedOrder()
+  );
   const [selectMode, setSelectMode] = useState<"single" | "multi">("single");
   const [orderSaveError, setOrderSaveError] = useState<string | null>(null);
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
@@ -193,6 +229,7 @@ export default function CalendarMonth() {
         writePersistedCache(monthCache.current);
         if (opts.withOrder && Array.isArray(data.categoryOrder)) {
           setCategoryOrder(data.categoryOrder);
+          writePersistedOrder(data.categoryOrder);
         }
         const vd = viewDateRef.current;
         if (vd.year === year && vd.month === month) {
@@ -221,6 +258,7 @@ export default function CalendarMonth() {
         const res = await fetchMonth(year, month, opts);
         if (res.unauthorized) {
           clearPersistedCache();
+          clearPersistedOrder();
           setStatus("unauthorized");
         }
         return;
@@ -229,6 +267,7 @@ export default function CalendarMonth() {
       const res = await fetchMonth(year, month, opts);
       if (res.unauthorized) {
         clearPersistedCache();
+        clearPersistedOrder();
         setStatus("unauthorized");
         return;
       }
@@ -376,6 +415,7 @@ export default function CalendarMonth() {
   // 사용자 지정 카테고리 순서 갱신(낙관적: 즉시 반영 + 디바운스 백그라운드 저장)
   function handleOrderChange(newOrder: string[]) {
     setCategoryOrder(newOrder);
+    writePersistedOrder(newOrder);
     setOrderSaveError(null);
     pendingOrderRef.current = newOrder;
     if (orderSaveTimer.current) clearTimeout(orderSaveTimer.current);
@@ -990,6 +1030,7 @@ export default function CalendarMonth() {
           onClose={() => setManageOpen(false)}
           onChanged={() => {
             monthCache.current.clear();
+            clearPersistedCache(); // 카테고리 변경 후 stale 일정 캐시가 재시작에 남지 않게
             void load({ withOrder: true });
           }}
         />
