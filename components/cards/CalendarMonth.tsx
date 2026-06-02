@@ -75,6 +75,45 @@ const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_LANES = 3; // 칸당 최대 막대 레인 수(초과분은 +N)
 const HOLIDAY_COLOR = "#ef4444"; // 공휴일 막대색(red-500)
 
+// 월별 일정 캐시를 localStorage에 영속화 → 앱을 껐다 켜도(PWA 재시작) 즉시
+// 직전 일정을 보여주고 백그라운드로 재검증(SWR). 메모리 ref만 쓰면 재시작 시
+// 항상 콜드 스타트(토큰 갱신+네트워크 대기)라 로딩이 길다.
+const MONTH_CACHE_KEY = "calendarMonthCache:v1";
+const MAX_PERSISTED_MONTHS = 8; // localStorage 용량 보호용 상한
+
+function readPersistedCache(): Map<string, Calendar[]> {
+  if (typeof window === "undefined") return new Map();
+  try {
+    const raw = window.localStorage.getItem(MONTH_CACHE_KEY);
+    if (!raw) return new Map();
+    const entries = JSON.parse(raw) as [string, Calendar[]][];
+    if (!Array.isArray(entries)) return new Map();
+    return new Map(entries);
+  } catch {
+    return new Map();
+  }
+}
+
+function writePersistedCache(cache: Map<string, Calendar[]>) {
+  if (typeof window === "undefined") return;
+  try {
+    // 삽입 순서 기준 최근 N개월만 보존.
+    const entries = [...cache.entries()].slice(-MAX_PERSISTED_MONTHS);
+    window.localStorage.setItem(MONTH_CACHE_KEY, JSON.stringify(entries));
+  } catch {
+    // 용량 초과 등은 무시(영속화는 best-effort).
+  }
+}
+
+function clearPersistedCache() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(MONTH_CACHE_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 export default function CalendarMonth() {
   const today = new Date();
   const [viewDate, setViewDate] = useState({
@@ -101,6 +140,13 @@ export default function CalendarMonth() {
   const pendingOrderRef = useRef<string[] | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const monthCache = useRef<Map<string, Calendar[]>>(new Map());
+  // 첫 렌더에서 localStorage 캐시로 1회 지연 초기화(재시작 시 즉시 표시용).
+  const cacheHydrated = useRef(false);
+  if (!cacheHydrated.current) {
+    cacheHydrated.current = true;
+    const persisted = readPersistedCache();
+    if (persisted.size) monthCache.current = persisted;
+  }
   const inflight = useRef<Set<string>>(new Set());
   const viewDateRef = useRef(viewDate);
   viewDateRef.current = viewDate;
@@ -144,6 +190,7 @@ export default function CalendarMonth() {
         const data = await r.json();
         const cals: Calendar[] = data.calendars ?? [];
         monthCache.current.set(key, cals);
+        writePersistedCache(monthCache.current);
         if (opts.withOrder && Array.isArray(data.categoryOrder)) {
           setCategoryOrder(data.categoryOrder);
         }
@@ -172,12 +219,16 @@ export default function CalendarMonth() {
         setCalendars(cached);
         setStatus("ok");
         const res = await fetchMonth(year, month, opts);
-        if (res.unauthorized) setStatus("unauthorized");
+        if (res.unauthorized) {
+          clearPersistedCache();
+          setStatus("unauthorized");
+        }
         return;
       }
       setStatus("loading");
       const res = await fetchMonth(year, month, opts);
       if (res.unauthorized) {
+        clearPersistedCache();
         setStatus("unauthorized");
         return;
       }
