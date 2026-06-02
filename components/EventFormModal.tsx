@@ -625,82 +625,85 @@ export default function EventFormModal({
 
           {repeat && !rruleParsed.advanced && (
             <div className="rounded-xl bg-gray-50 p-3 space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <input
-                  type="number"
-                  min={1}
-                  value={interval}
-                  onChange={(e) =>
-                    setIntervalN(Math.max(1, Number(e.target.value) || 1))
-                  }
-                  className={`${inputClass} w-16 shrink-0 text-center`}
-                />
-                <select
-                  value={freq}
-                  onChange={(e) => setFreq(e.target.value as Freq)}
-                  className={`${inputClass} flex-1 min-w-0`}
-                >
-                  <option value="DAILY">일</option>
-                  <option value="WEEKLY">주</option>
-                  <option value="MONTHLY">개월</option>
-                  <option value="YEARLY">년</option>
-                </select>
-                <span className="text-gray-600 shrink-0 whitespace-nowrap">마다</span>
+              {/* 반복 주기: [간격][단위마다] — 각 컨트롤은 셀 안에서 전체폭 */}
+              <div>
+                <span className="block text-xs font-medium text-gray-500 mb-1.5">
+                  반복 주기
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={interval}
+                    onChange={(e) =>
+                      setIntervalN(Math.max(1, Number(e.target.value) || 1))
+                    }
+                    className={inputClass}
+                    aria-label="반복 간격"
+                  />
+                  <select
+                    value={freq}
+                    onChange={(e) => setFreq(e.target.value as Freq)}
+                    className={inputClass}
+                    aria-label="반복 단위"
+                  >
+                    <option value="DAILY">일마다</option>
+                    <option value="WEEKLY">주마다</option>
+                    <option value="MONTHLY">개월마다</option>
+                    <option value="YEARLY">년마다</option>
+                  </select>
+                </div>
               </div>
-              <div className="space-y-1 text-sm">
-                <span className="block text-xs font-medium text-gray-500">종료</span>
-                <label className="flex items-center gap-2 cursor-pointer min-h-[40px] py-1">
-                  <input
-                    type="radio"
-                    checked={endMode === "never"}
-                    onChange={() => setEndMode("never")}
-                    className="accent-[var(--color-brand)] shrink-0"
-                  />
-                  <span className="whitespace-nowrap">안 함</span>
-                  {lunar && (freq === "MONTHLY" || freq === "YEARLY") && (
-                    <span className="text-xs text-gray-400 whitespace-nowrap">
-                      (최대 {freq === "YEARLY" ? `${LUNAR_YEARS_AHEAD}회` : `${LUNAR_MONTHS_AHEAD}회`})
-                    </span>
+
+              {/* 종료: 셀렉트 + 조건부 전체폭 Field */}
+              <div>
+                <span className="block text-xs font-medium text-gray-500 mb-1.5">
+                  종료
+                </span>
+                <select
+                  value={endMode}
+                  onChange={(e) => setEndMode(e.target.value as EndMode)}
+                  className={inputClass}
+                >
+                  <option value="never">계속 반복</option>
+                  <option value="count">횟수 지정</option>
+                  <option value="until">날짜 지정</option>
+                </select>
+                {endMode === "never" &&
+                  lunar &&
+                  (freq === "MONTHLY" || freq === "YEARLY") && (
+                    <p className="mt-1.5 text-xs text-gray-400">
+                      최대{" "}
+                      {freq === "YEARLY" ? LUNAR_YEARS_AHEAD : LUNAR_MONTHS_AHEAD}
+                      회 자동 등록됩니다.
+                    </p>
                   )}
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer min-h-[40px] py-1">
-                  <input
-                    type="radio"
-                    checked={endMode === "count"}
-                    onChange={() => setEndMode("count")}
-                    className="accent-[var(--color-brand)] shrink-0"
-                  />
+              </div>
+
+              {endMode === "count" && (
+                <Field label="반복 횟수 (회)">
                   <input
                     type="number"
                     min={1}
                     value={count}
-                    onChange={(e) => {
-                      setCount(Math.max(1, Number(e.target.value) || 1));
-                      setEndMode("count");
-                    }}
-                    className={`${inputClass} w-20 shrink-0 text-center`}
+                    onChange={(e) =>
+                      setCount(Math.max(1, Number(e.target.value) || 1))
+                    }
+                    className={inputClass}
                   />
-                  <span className="text-gray-700 shrink-0 whitespace-nowrap">회 반복</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer min-h-[40px] py-1">
-                  <input
-                    type="radio"
-                    checked={endMode === "until"}
-                    onChange={() => setEndMode("until")}
-                    className="accent-[var(--color-brand)] shrink-0"
-                  />
+                </Field>
+              )}
+
+              {endMode === "until" && (
+                <Field label="종료 날짜">
                   <input
                     type="date"
                     value={until}
-                    onChange={(e) => {
-                      setUntil(e.target.value);
-                      if (e.target.value) setEndMode("until");
-                    }}
-                    className={`${inputClass} flex-1 min-w-0`}
+                    onChange={(e) => setUntil(e.target.value)}
+                    className={inputClass}
                   />
-                  <span className="text-gray-700 shrink-0 whitespace-nowrap">까지</span>
-                </label>
-              </div>
+                </Field>
+              )}
             </div>
           )}
 
