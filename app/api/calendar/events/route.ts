@@ -38,12 +38,14 @@ function buildEventResource(body: EventBody) {
 
   if (body.allDay) {
     if (!body.date) return null;
-    resource.start = { date: body.date };
-    resource.end = { date: addOneDay(body.endDate || body.date) };
+    // PATCH 머지 시 기존 dateTime이 남아 date와 충돌(400)하지 않도록 명시적으로 null 처리.
+    resource.start = { date: body.date, dateTime: null, timeZone: null };
+    resource.end = { date: addOneDay(body.endDate || body.date), dateTime: null, timeZone: null };
   } else {
     if (!body.startDateTime || !body.endDateTime) return null;
-    resource.start = { dateTime: body.startDateTime, timeZone: TIME_ZONE };
-    resource.end = { dateTime: body.endDateTime, timeZone: TIME_ZONE };
+    // 반대 방향(종일→시간) 전환 시 기존 date가 남지 않도록 null 처리.
+    resource.start = { dateTime: body.startDateTime, timeZone: TIME_ZONE, date: null };
+    resource.end = { dateTime: body.endDateTime, timeZone: TIME_ZONE, date: null };
   }
   return resource;
 }

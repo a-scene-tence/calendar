@@ -801,10 +801,7 @@ export default function CalendarMonth() {
                     <div key={lane} className="grid grid-cols-7 gap-px h-[14px]">
                       {segs.map((seg) => {
                         const { item, colStart, span, roundLeft, roundRight } = seg;
-                        const label =
-                          !item.allDay && item.event.start
-                            ? `${hhmm(new Date(item.event.start))} ${item.event.summary}`
-                            : item.event.summary;
+                        const label = item.event.summary;
                         return (
                           <button
                             key={item.event.id}
@@ -1118,10 +1115,9 @@ function buildMonthGrid(year: number, month: number): Date[] {
 }
 
 function formatTime(start: string): string {
+  // 종일은 "종일" 배지 유지, 시간 일정은 시간을 표시하지 않음(빈 컬럼으로 정렬만 유지).
   if (isAllDay(start)) return "종일";
-  const d = new Date(start);
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
+  return "";
 }
 
 function formatResultDate(start: string): string {
