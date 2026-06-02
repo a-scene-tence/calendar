@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSwipeToDismiss } from "@/lib/useSwipeToDismiss";
 
 export type ManageCalendar = { id: string; name: string; color: string };
 
@@ -45,6 +46,9 @@ export default function CalendarManageModal({
   const [ioBusy, setIoBusy] = useState(false);
   const [ioMessage, setIoMessage] = useState<string | null>(null);
   const [ioError, setIoError] = useState<string | null>(null);
+
+  // 모바일: 시트를 아래로 끌어 닫기.
+  const { sheetRef, sheetStyle } = useSwipeToDismiss(onClose);
 
   async function call(
     method: "POST" | "PATCH" | "DELETE",
@@ -250,10 +254,12 @@ export default function CalendarManageModal({
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto animate-sheet"
+        ref={sheetRef}
+        style={sheetStyle}
+        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain animate-sheet"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-300 sm:hidden" />
         <h2 className="text-lg font-bold mb-5 tracking-tight">카테고리 관리</h2>
 
         {/* 추가 */}

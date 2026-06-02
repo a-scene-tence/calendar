@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { lunarToSolar, solarToLunar } from "@/lib/lunar";
+import { useSwipeToDismiss } from "@/lib/useSwipeToDismiss";
 
 export type WritableCalendar = { id: string; name: string; color: string };
 
@@ -309,6 +310,9 @@ export default function EventFormModal({
     return d ? ymd(d) : null;
   }, [lunar, lunarYear, lunarMonth, lunarDay, lunarLeap]);
 
+  // 모바일: 시트를 아래로 끌어 닫기.
+  const { sheetRef, sheetStyle } = useSwipeToDismiss(onClose);
+
   async function save() {
     if (!summary.trim()) return setError("제목을 입력하세요.");
     if (!calendarId) return setError("캘린더를 선택하세요.");
@@ -443,10 +447,12 @@ export default function EventFormModal({
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto animate-sheet"
+        ref={sheetRef}
+        style={sheetStyle}
+        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain animate-sheet"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-gray-200 sm:hidden" />
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-300 sm:hidden" />
         <h2 className="text-lg font-bold mb-5 tracking-tight">
           {mode === "edit" ? "일정 수정" : "일정 추가"}
         </h2>
