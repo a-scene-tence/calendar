@@ -11,24 +11,25 @@
     "deploy": "opennextjs-cloudflare build && wrangler deploy"
   },
   "dependencies": {
+    "@serwist/next": "^9.0.0",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.0",
+    "korean-lunar-calendar": "^0.3.6",
     "next": "^15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@supabase/supabase-js": "^2.49.0",
-    "@supabase/ssr": "^0.6.1",
-    "serwist": "^9.0.0",
-    "@serwist/next": "^9.0.0"
+    "serwist": "^9.0.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@opennextjs/cloudflare": "^1.0.0",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "^15.3.0",
-    "@opennextjs/cloudflare": "^1.0.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
     "wrangler": "^4.0.0"
   }
 }

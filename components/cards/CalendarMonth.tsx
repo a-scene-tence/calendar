@@ -6,6 +6,7 @@ import EventFormModal, {
   WritableCalendar,
 } from "@/components/EventFormModal";
 import CalendarManageModal from "@/components/CalendarManageModal";
+import { lunarHighlight } from "@/lib/lunar";
 
 type CalendarEvent = {
   id: string;
@@ -753,6 +754,18 @@ export default function CalendarMonth() {
                       >
                         {d.getDate()}
                       </span>
+                      {(() => {
+                        const lunar = lunarHighlight(d);
+                        return lunar ? (
+                          <span
+                            className={`mt-0.5 text-[9px] leading-none ${
+                              inMonth ? "text-gray-400" : "text-gray-300"
+                            }`}
+                          >
+                            {lunar}
+                          </span>
+                        ) : null;
+                      })()}
                     </button>
                   );
                 })}
