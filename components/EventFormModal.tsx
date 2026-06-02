@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { lunarToSolar, solarToLunar } from "@/lib/lunar";
 
 export type WritableCalendar = { id: string; name: string; color: string };
 
@@ -15,7 +16,143 @@ export type EventInitial = {
   endTime: string; // HH:mm
   location: string;
   description: string;
+  recurrence?: string[];
+  recurringEventId?: string;
+  originalStartTime?: string;
 };
+
+type Freq = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+type EndMode = "never" | "count" | "until";
+
+const LUNAR_MARK_RE = /^\[음력\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*\(윤달\))?\]/;
+const LUNAR_YEARS_AHEAD = 50;
+
+// description의 음력 마커 + 기존 recurrence가 RDATE면 음력 일정으로 인식.
+function parseLunarFromInitial(initial: EventInitial): {
+  isLunar: boolean;
+  month: number;
+  day: number;
+  leap: boolean;
+  cleanDesc: string;
+} {
+  const m = LUNAR_MARK_RE.exec(initial.description || "");
+  const hasRdate = (initial.recurrence ?? []).some((r) =>
+    r.toUpperCase().startsWith("RDATE")
+  );
+  if (m && hasRdate) {
+    const month = Number(m[1]);
+    const day = Number(m[2]);
+    const leap = /\(윤달\)/.test(m[0]);
+    const cleanDesc = initial.description.replace(LUNAR_MARK_RE, "").trimStart();
+    return { isLunar: true, month, day, leap, cleanDesc };
+  }
+  return { isLunar: false, month: 1, day: 1, leap: false, cleanDesc: initial.description };
+}
+
+// RRULE 한 줄을 UI 상태로 파싱. 단순 RRULE만 지원(BYDAY 등은 무시).
+function parseRrule(recurrence: string[] | undefined): {
+  repeat: boolean;
+  freq: Freq;
+  interval: number;
+  endMode: EndMode;
+  count: number;
+  until: string;
+  advanced: boolean; // 파싱하지 못한 복잡한 규칙
+} {
+  const def = {
+    repeat: false,
+    freq: "WEEKLY" as Freq,
+    interval: 1,
+    endMode: "never" as EndMode,
+    count: 10,
+    until: "",
+    advanced: false,
+  };
+  const line = (recurrence ?? []).find((r) => r.toUpperCase().startsWith("RRULE"));
+  if (!line) return def;
+  const parts = line.replace(/^RRULE:/i, "").split(";");
+  const map = new Map<string, string>();
+  for (const p of parts) {
+    const [k, v] = p.split("=");
+    if (k && v) map.set(k.toUpperCase(), v);
+  }
+  const freq = (map.get("FREQ") || "").toUpperCase();
+  if (!["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].includes(freq)) {
+    return { ...def, repeat: true, advanced: true };
+  }
+  // 단순 RRULE 외 키가 있으면 advanced
+  const advanced = [...map.keys()].some(
+    (k) => !["FREQ", "INTERVAL", "COUNT", "UNTIL", "WKST"].includes(k)
+  );
+  const interval = Math.max(1, Number(map.get("INTERVAL")) || 1);
+  let endMode: EndMode = "never";
+  let count = 10;
+  let until = "";
+  if (map.get("COUNT")) {
+    endMode = "count";
+    count = Math.max(1, Number(map.get("COUNT")) || 1);
+  } else if (map.get("UNTIL")) {
+    endMode = "until";
+    const u = map.get("UNTIL") as string;
+    // YYYYMMDD 또는 YYYYMMDDTHHMMSSZ → YYYY-MM-DD
+    until = `${u.slice(0, 4)}-${u.slice(4, 6)}-${u.slice(6, 8)}`;
+  }
+  return {
+    repeat: true,
+    freq: freq as Freq,
+    interval,
+    endMode,
+    count,
+    until,
+    advanced,
+  };
+}
+
+function buildRrule(
+  freq: Freq,
+  interval: number,
+  endMode: EndMode,
+  count: number,
+  until: string,
+  allDay: boolean
+): string {
+  let s = `RRULE:FREQ=${freq};INTERVAL=${Math.max(1, interval || 1)}`;
+  if (endMode === "count") {
+    s += `;COUNT=${Math.max(1, count || 1)}`;
+  } else if (endMode === "until" && until) {
+    const ymd = until.replace(/-/g, "");
+    s += allDay ? `;UNTIL=${ymd}` : `;UNTIL=${ymd}T235959Z`;
+  }
+  return s;
+}
+
+function buildLunarRdate(
+  startYear: number,
+  lunarMonth: number,
+  lunarDay: number,
+  leap: boolean
+): { firstSolar: Date | null; rdateLine: string | null } {
+  const first = lunarToSolar(startYear, lunarMonth, lunarDay, leap);
+  if (!first) return { firstSolar: null, rdateLine: null };
+  const dates: string[] = [];
+  for (let k = 1; k <= LUNAR_YEARS_AHEAD; k++) {
+    const d = lunarToSolar(startYear + k, lunarMonth, lunarDay, leap);
+    if (!d) continue; // 윤달이 없는 해는 스킵
+    const ymd =
+      `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
+        d.getDate()
+      ).padStart(2, "0")}`;
+    dates.push(ymd);
+  }
+  const line = dates.length ? `RDATE;VALUE=DATE:${dates.join(",")}` : null;
+  return { firstSolar: first, rdateLine: line };
+}
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
 
 export default function EventFormModal({
   mode,
@@ -30,6 +167,13 @@ export default function EventFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  // 음력 파싱
+  const lunarParsed = useMemo(() => parseLunarFromInitial(initial), [initial]);
+  // RRULE 파싱
+  const rruleParsed = useMemo(() => parseRrule(initial.recurrence), [initial.recurrence]);
+
+  const isInstance = !!initial.recurringEventId;
+
   const [summary, setSummary] = useState(initial.summary);
   const [calendarId, setCalendarId] = useState(
     initial.calendarId || calendars[0]?.id || ""
@@ -40,9 +184,46 @@ export default function EventFormModal({
   const [startTime, setStartTime] = useState(initial.startTime);
   const [endTime, setEndTime] = useState(initial.endTime);
   const [location, setLocation] = useState(initial.location);
-  const [description, setDescription] = useState(initial.description);
+  const [description, setDescription] = useState(lunarParsed.cleanDesc);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 반복 상태
+  const [repeat, setRepeat] = useState(rruleParsed.repeat);
+  const [freq, setFreq] = useState<Freq>(rruleParsed.freq);
+  const [interval, setIntervalN] = useState(rruleParsed.interval);
+  const [endMode, setEndMode] = useState<EndMode>(rruleParsed.endMode);
+  const [count, setCount] = useState(rruleParsed.count);
+  const [until, setUntil] = useState(rruleParsed.until);
+
+  // 음력 상태
+  const baseLunar = useMemo(() => {
+    if (lunarParsed.isLunar) {
+      const y = Number((initial.date || "").slice(0, 4)) || new Date().getFullYear();
+      return { year: y, month: lunarParsed.month, day: lunarParsed.day, leap: lunarParsed.leap };
+    }
+    // 새 일정은 선택 날짜의 음력으로 초기값
+    const d = new Date(`${initial.date || ymd(new Date())}T00:00:00`);
+    const l = solarToLunar(d);
+    return l
+      ? { year: l.year, month: l.month, day: l.day, leap: l.leap }
+      : { year: new Date().getFullYear(), month: 1, day: 1, leap: false };
+  }, [initial, lunarParsed]);
+  const [lunar, setLunar] = useState(lunarParsed.isLunar);
+  const [lunarYear, setLunarYear] = useState(baseLunar.year);
+  const [lunarMonth, setLunarMonth] = useState(baseLunar.month);
+  const [lunarDay, setLunarDay] = useState(baseLunar.day);
+  const [lunarLeap, setLunarLeap] = useState(baseLunar.leap);
+
+  // 인스턴스 수정/삭제 scope
+  const [scope, setScope] = useState<"single" | "series">("series");
+
+  // 음력 미리보기(첫 양력 날짜)
+  const lunarPreview = useMemo(() => {
+    if (!lunar) return null;
+    const d = lunarToSolar(lunarYear, lunarMonth, lunarDay, lunarLeap);
+    return d ? ymd(d) : null;
+  }, [lunar, lunarYear, lunarMonth, lunarDay, lunarLeap]);
 
   async function save() {
     if (!summary.trim()) return setError("제목을 입력하세요.");
@@ -53,18 +234,58 @@ export default function EventFormModal({
     const payload: Record<string, unknown> = {
       calendarId,
       summary: summary.trim(),
-      allDay,
       location: location.trim(),
-      description: description.trim(),
     };
-    if (allDay) {
-      payload.date = date;
-      payload.endDate = endDate || date;
+
+    // 음력 모드: 종일 + RDATE 50년치 + description에 음력 마커
+    if (lunar) {
+      const { firstSolar, rdateLine } = buildLunarRdate(
+        lunarYear,
+        lunarMonth,
+        lunarDay,
+        lunarLeap
+      );
+      if (!firstSolar) {
+        setBusy(false);
+        return setError("음력 날짜가 유효하지 않습니다.");
+      }
+      const startKey = ymd(firstSolar);
+      payload.allDay = true;
+      payload.date = startKey;
+      payload.endDate = startKey;
+      const mark = `[음력 ${lunarMonth}월 ${lunarDay}일${lunarLeap ? " (윤달)" : ""}]`;
+      payload.description = description.trim()
+        ? `${mark}\n${description.trim()}`
+        : mark;
+      payload.recurrence = rdateLine ? [rdateLine] : [];
     } else {
-      payload.startDateTime = `${date}T${startTime}:00`;
-      payload.endDateTime = `${date}T${endTime}:00`;
+      payload.allDay = allDay;
+      payload.description = description.trim();
+      if (allDay) {
+        payload.date = date;
+        payload.endDate = endDate || date;
+      } else {
+        payload.startDateTime = `${date}T${startTime}:00`;
+        payload.endDateTime = `${date}T${endTime}:00`;
+      }
+      if (repeat && !rruleParsed.advanced) {
+        payload.recurrence = [
+          buildRrule(freq, interval, endMode, count, until, allDay),
+        ];
+      } else if (!repeat && mode === "edit") {
+        // 반복 해제: 빈 배열로 명시 전송(서버는 빈 배열은 무시 → recurrence 미전달과 같음).
+        // 진짜 해제는 향후 별도 처리. V1에서는 켜진 상태 그대로 유지.
+      }
     }
-    if (mode === "edit") payload.eventId = initial.eventId;
+
+    if (mode === "edit") {
+      payload.eventId = initial.eventId;
+      if (isInstance && scope === "single") {
+        payload.scope = "single";
+        payload.recurringEventId = initial.recurringEventId;
+        payload.originalStartTime = initial.originalStartTime;
+      }
+    }
 
     const res = await fetch("/api/calendar/events", {
       method: mode === "edit" ? "PATCH" : "POST",
@@ -73,19 +294,34 @@ export default function EventFormModal({
     });
     setBusy(false);
     if (res.status === 401) return setError("세션 만료. 다시 로그인하세요.");
-    if (!res.ok) return setError("저장에 실패했습니다.");
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      return setError(
+        `저장 실패 (${j.googleStatus ?? res.status}) ${j.googleMessage ?? ""}`.trim()
+      );
+    }
     onSaved();
   }
 
   async function remove() {
     if (!initial.eventId) return;
-    if (!confirm("이 일정을 삭제할까요?")) return;
+    const label = isInstance && scope === "single" ? "이 일정만" : "일정";
+    if (!confirm(`${label} 삭제할까요?`)) return;
     setBusy(true);
     setError(null);
+    const body: Record<string, unknown> = {
+      calendarId,
+      eventId: initial.eventId,
+    };
+    if (isInstance && scope === "single") {
+      body.scope = "single";
+      body.recurringEventId = initial.recurringEventId;
+      body.originalStartTime = initial.originalStartTime;
+    }
     const res = await fetch("/api/calendar/events", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ calendarId, eventId: initial.eventId }),
+      body: JSON.stringify(body),
     });
     setBusy(false);
     if (res.status === 401) return setError("세션 만료. 다시 로그인하세요.");
@@ -131,56 +367,251 @@ export default function EventFormModal({
             </select>
           </Field>
 
+          {!lunar && (
+            <label className="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={allDay}
+                onChange={(e) => setAllDay(e.target.checked)}
+                className="h-4 w-4 accent-[var(--color-brand)] cursor-pointer"
+              />
+              <span className="font-medium">종일</span>
+            </label>
+          )}
+
+          {!lunar && (
+            <>
+              <Field label="날짜">
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    if (!endDate || endDate < e.target.value) setEndDate(e.target.value);
+                  }}
+                  className={inputClass}
+                />
+              </Field>
+
+              {allDay ? (
+                <Field label="종료 날짜">
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={date}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+              ) : (
+                <div className="flex gap-3">
+                  <Field label="시작">
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="종료">
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 음력 토글 */}
           <label className="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer">
             <input
               type="checkbox"
-              checked={allDay}
-              onChange={(e) => setAllDay(e.target.checked)}
+              checked={lunar}
+              onChange={(e) => {
+                setLunar(e.target.checked);
+                if (e.target.checked) setRepeat(false);
+              }}
               className="h-4 w-4 accent-[var(--color-brand)] cursor-pointer"
             />
-            <span className="font-medium">종일</span>
+            <span className="font-medium">음력 일정 (매년 반복, 종일)</span>
           </label>
 
-          <Field label="날짜">
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                if (!endDate || endDate < e.target.value) setEndDate(e.target.value);
-              }}
-              className={inputClass}
-            />
-          </Field>
+          {lunar && (
+            <div className="rounded-xl bg-gray-50 p-3 space-y-2">
+              <div className="flex gap-2 items-end">
+                <Field label="음력 연도">
+                  <input
+                    type="number"
+                    value={lunarYear}
+                    min={1000}
+                    max={2050}
+                    onChange={(e) => setLunarYear(Number(e.target.value) || 0)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="월">
+                  <select
+                    value={lunarMonth}
+                    onChange={(e) => setLunarMonth(Number(e.target.value))}
+                    className={inputClass}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="일">
+                  <select
+                    value={lunarDay}
+                    onChange={(e) => setLunarDay(Number(e.target.value))}
+                    className={inputClass}
+                  >
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={lunarLeap}
+                  onChange={(e) => setLunarLeap(e.target.checked)}
+                  className="h-4 w-4 accent-[var(--color-brand)] cursor-pointer"
+                />
+                <span>윤달</span>
+              </label>
+              <p className="text-xs text-gray-500">
+                {lunarPreview
+                  ? `양력 ${lunarPreview}부터 향후 ${LUNAR_YEARS_AHEAD}년간 매년 음력 ${lunarMonth}월 ${lunarDay}일`
+                  : "이 음력 날짜는 유효하지 않습니다 (그 해에 해당 윤달이 없을 수 있음)."}
+              </p>
+            </div>
+          )}
 
-          {allDay ? (
-            <Field label="종료 날짜">
+          {/* 반복 토글 (음력 일정과 상호 배타) */}
+          {!lunar && (
+            <label className="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer">
               <input
-                type="date"
-                value={endDate}
-                min={date}
-                onChange={(e) => setEndDate(e.target.value)}
-                className={inputClass}
+                type="checkbox"
+                checked={repeat}
+                onChange={(e) => setRepeat(e.target.checked)}
+                disabled={rruleParsed.advanced}
+                className="h-4 w-4 accent-[var(--color-brand)] cursor-pointer disabled:opacity-50"
               />
-            </Field>
-          ) : (
-            <div className="flex gap-3">
-              <Field label="시작">
+              <span className="font-medium">반복</span>
+              {rruleParsed.advanced && (
+                <span className="text-xs text-gray-400">(고급 반복 — 편집 불가)</span>
+              )}
+            </label>
+          )}
+
+          {!lunar && repeat && !rruleParsed.advanced && (
+            <div className="rounded-xl bg-gray-50 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
                 <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className={inputClass}
+                  type="number"
+                  min={1}
+                  value={interval}
+                  onChange={(e) => setIntervalN(Math.max(1, Number(e.target.value) || 1))}
+                  className={`${inputClass} w-20`}
                 />
-              </Field>
-              <Field label="종료">
+                <select
+                  value={freq}
+                  onChange={(e) => setFreq(e.target.value as Freq)}
+                  className={`${inputClass} w-28`}
+                >
+                  <option value="DAILY">일</option>
+                  <option value="WEEKLY">주</option>
+                  <option value="MONTHLY">개월</option>
+                  <option value="YEARLY">년</option>
+                </select>
+                <span className="text-gray-600">마다</span>
+              </div>
+              <div className="space-y-1.5 text-sm">
+                <span className="block text-xs font-medium text-gray-500">종료</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={endMode === "never"}
+                    onChange={() => setEndMode("never")}
+                    className="accent-[var(--color-brand)]"
+                  />
+                  <span>안 함</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={endMode === "count"}
+                    onChange={() => setEndMode("count")}
+                    className="accent-[var(--color-brand)]"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    value={count}
+                    onChange={(e) => {
+                      setCount(Math.max(1, Number(e.target.value) || 1));
+                      setEndMode("count");
+                    }}
+                    className={`${inputClass} w-20`}
+                  />
+                  <span>회</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    checked={endMode === "until"}
+                    onChange={() => setEndMode("until")}
+                    className="accent-[var(--color-brand)]"
+                  />
+                  <input
+                    type="date"
+                    value={until}
+                    onChange={(e) => {
+                      setUntil(e.target.value);
+                      if (e.target.value) setEndMode("until");
+                    }}
+                    className={`${inputClass} w-40`}
+                  />
+                  <span>까지</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* 인스턴스 scope 선택 */}
+          {mode === "edit" && isInstance && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-1.5 text-sm">
+              <span className="block text-xs font-medium text-amber-800">
+                반복 일정 — 적용 범위
+              </span>
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className={inputClass}
+                  type="radio"
+                  checked={scope === "single"}
+                  onChange={() => setScope("single")}
+                  className="accent-[var(--color-brand)]"
                 />
-              </Field>
+                <span>이 일정만</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  checked={scope === "series"}
+                  onChange={() => setScope("series")}
+                  className="accent-[var(--color-brand)]"
+                />
+                <span>전체 시리즈</span>
+              </label>
             </div>
           )}
 

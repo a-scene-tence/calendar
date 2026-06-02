@@ -133,8 +133,12 @@ export async function GET(request: NextRequest) {
             (item: {
               id: string;
               summary?: string;
+              description?: string;
               start?: { dateTime?: string; date?: string };
               end?: { dateTime?: string; date?: string };
+              originalStartTime?: { dateTime?: string; date?: string };
+              recurringEventId?: string;
+              recurrence?: string[];
               location?: string;
             }) => ({
               id: `${cal.id}:${item.id}`,
@@ -144,8 +148,14 @@ export async function GET(request: NextRequest) {
               color,
               isHoliday,
               summary: item.summary ?? "(제목 없음)",
+              description: item.description,
               start: item.start?.dateTime ?? item.start?.date ?? "",
               end: item.end?.dateTime ?? item.end?.date ?? "",
+              originalStartTime:
+                item.originalStartTime?.dateTime ??
+                item.originalStartTime?.date,
+              recurringEventId: item.recurringEventId,
+              recurrence: item.recurrence,
               location: item.location,
             })
           )
@@ -187,16 +197,26 @@ export async function GET(request: NextRequest) {
               (item: {
                 id: string;
                 summary?: string;
+                description?: string;
                 start?: { dateTime?: string; date?: string };
                 end?: { dateTime?: string; date?: string };
+                originalStartTime?: { dateTime?: string; date?: string };
+                recurringEventId?: string;
+                recurrence?: string[];
                 location?: string;
               }) => ({
                 id: `${cal.id}:${item.id}`,
                 eventId: item.id,
                 calendarId: cal.id,
                 summary: item.summary ?? "(제목 없음)",
+                description: item.description,
                 start: item.start?.dateTime ?? item.start?.date ?? "",
                 end: item.end?.dateTime ?? item.end?.date ?? "",
+                originalStartTime:
+                  item.originalStartTime?.dateTime ??
+                  item.originalStartTime?.date,
+                recurringEventId: item.recurringEventId,
+                recurrence: item.recurrence,
                 location: item.location,
               })
             )

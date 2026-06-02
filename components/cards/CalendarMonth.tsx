@@ -13,9 +13,13 @@ type CalendarEvent = {
   eventId: string;
   calendarId: string;
   summary: string;
+  description?: string;
   start: string;
   end?: string;
   location?: string;
+  recurringEventId?: string;
+  originalStartTime?: string;
+  recurrence?: string[];
 };
 
 type Calendar = {
@@ -58,9 +62,13 @@ type SearchResult = {
   color: string;
   isHoliday: boolean;
   summary: string;
+  description?: string;
   start: string;
   end?: string;
   location?: string;
+  recurringEventId?: string;
+  originalStartTime?: string;
+  recurrence?: string[];
 };
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -970,7 +978,10 @@ function toEventInitial(event: CalendarEvent): EventInitial {
     calendarId: event.calendarId,
     summary: event.summary,
     location: event.location ?? "",
-    description: "",
+    description: event.description ?? "",
+    recurrence: event.recurrence,
+    recurringEventId: event.recurringEventId,
+    originalStartTime: event.originalStartTime,
   };
   if (isAllDay(event.start)) {
     let endDate = event.start;
