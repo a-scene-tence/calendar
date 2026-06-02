@@ -24,11 +24,15 @@ export type EventInitial = {
 type Freq = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 type EndMode = "never" | "count" | "until";
 
-const LUNAR_MARK_RE = /^\[음력\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*\(윤달\))?\]/;
+// 음력 마커 형식: [음력 M월 D일] | [음력 M월 D일 (윤달)] | [음력 M월 D일 · 매월] | [음력 M월 D일 · 매년×2]
+const LUNAR_MARK_RE =
+  /^\[음력\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*\(윤달\))?(?:\s*·\s*(매월|매년)(?:×(\d+))?)?\]/;
 const LUNAR_YEARS_AHEAD = 50;
+const LUNAR_MONTHS_AHEAD = 60;
 
 // description의 음력 마커가 있으면 음력 일정으로 인식.
-// hasRdate는 "음력+매년반복(RDATE)" 케이스의 복원 신호.
+// hasRdate는 "음력 매월/매년 반복(RDATE)" 케이스의 복원 신호.
+// lunarFreqHint는 꼬리표에서 추출한 freq(없으면 YEARLY로 폴백 — 구버전 호환).
 function parseLunarFromInitial(initial: EventInitial): {
   isLunar: boolean;
   month: number;
@@ -36,6 +40,8 @@ function parseLunarFromInitial(initial: EventInitial): {
   leap: boolean;
   cleanDesc: string;
   hasRdate: boolean;
+  lunarFreqHint: "MONTHLY" | "YEARLY" | null;
+  lunarIntervalHint: number;
 } {
   const m = LUNAR_MARK_RE.exec(initial.description || "");
   const hasRdate = (initial.recurrence ?? []).some((r) =>
@@ -45,8 +51,21 @@ function parseLunarFromInitial(initial: EventInitial): {
     const month = Number(m[1]);
     const day = Number(m[2]);
     const leap = /\(윤달\)/.test(m[0]);
+    const tag = m[2 + 1]; // "매월" | "매년" | undefined  (m[3])
+    const lunarFreqHint: "MONTHLY" | "YEARLY" | null =
+      tag === "매월" ? "MONTHLY" : tag === "매년" ? "YEARLY" : null;
+    const lunarIntervalHint = Math.max(1, Number(m[4]) || 1);
     const cleanDesc = initial.description.replace(LUNAR_MARK_RE, "").trimStart();
-    return { isLunar: true, month, day, leap, cleanDesc, hasRdate };
+    return {
+      isLunar: true,
+      month,
+      day,
+      leap,
+      cleanDesc,
+      hasRdate,
+      lunarFreqHint,
+      lunarIntervalHint,
+    };
   }
   return {
     isLunar: false,
@@ -55,6 +74,8 @@ function parseLunarFromInitial(initial: EventInitial): {
     leap: false,
     cleanDesc: initial.description,
     hasRdate,
+    lunarFreqHint: null,
+    lunarIntervalHint: 1,
   };
 }
 
@@ -148,23 +169,59 @@ function buildRrule(
   return s;
 }
 
+// 음력 기준 반복(매월/매년)을 양력 RDATE로 펼침.
+// 첫 발생(startYear, startMonth, lunarDay)은 events.date에 들어가므로 RDATE는 두 번째 발생부터 포함.
+// 윤달이 없는 해/달은 건너뜀.
 function buildLunarRdate(
   startYear: number,
-  lunarMonth: number,
+  startMonth: number,
   lunarDay: number,
-  leap: boolean
+  leap: boolean,
+  freq: "MONTHLY" | "YEARLY",
+  interval: number,
+  endMode: EndMode,
+  count: number,
+  until: string
 ): { firstSolar: Date | null; rdateLine: string | null } {
-  const first = lunarToSolar(startYear, lunarMonth, lunarDay, leap);
+  const first = lunarToSolar(startYear, startMonth, lunarDay, leap);
   if (!first) return { firstSolar: null, rdateLine: null };
+  const step = Math.max(1, interval || 1);
+  const untilDate =
+    endMode === "until" && until ? new Date(`${until}T23:59:59`) : null;
+  // count는 총 발생 횟수(첫 시드 포함). RDATE에 추가될 항목 수는 count - 1.
+  const additionalNeeded =
+    endMode === "count" ? Math.max(0, (count || 1) - 1) : null;
+  const neverLimit =
+    endMode === "never"
+      ? freq === "YEARLY"
+        ? LUNAR_YEARS_AHEAD
+        : LUNAR_MONTHS_AHEAD
+      : null;
+
   const dates: string[] = [];
-  for (let k = 1; k <= LUNAR_YEARS_AHEAD; k++) {
-    const d = lunarToSolar(startYear + k, lunarMonth, lunarDay, leap);
-    if (!d) continue; // 윤달이 없는 해는 스킵
+  let y = startYear;
+  let m = startMonth;
+  for (let iter = 0; iter < 2000; iter++) {
+    if (freq === "YEARLY") {
+      y += step;
+    } else {
+      m += step;
+      while (m > 12) {
+        m -= 12;
+        y += 1;
+      }
+    }
+    if (y > 2050) break; // 라이브러리 유효 범위 상한
+    const d = lunarToSolar(y, m, lunarDay, leap);
+    if (!d) continue; // 윤달/없는 음력 날짜는 스킵
+    if (untilDate && d > untilDate) break;
     const ymd =
       `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(
         d.getDate()
       ).padStart(2, "0")}`;
     dates.push(ymd);
+    if (additionalNeeded !== null && dates.length >= additionalNeeded) break;
+    if (neverLimit !== null && dates.length >= neverLimit) break;
   }
   const line = dates.length ? `RDATE;VALUE=DATE:${dates.join(",")}` : null;
   return { firstSolar: first, rdateLine: line };
@@ -210,11 +267,15 @@ export default function EventFormModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 반복 상태. 음력+RDATE면 매년 반복으로 복원.
-  const lunarYearly = lunarParsed.isLunar && lunarParsed.hasRdate;
-  const [repeat, setRepeat] = useState(rruleParsed.repeat || lunarYearly);
-  const [freq, setFreq] = useState<Freq>(lunarYearly ? "YEARLY" : rruleParsed.freq);
-  const [interval, setIntervalN] = useState(rruleParsed.interval);
+  // 반복 상태. 음력+RDATE면 꼬리표에서 freq/interval을 복원(없으면 YEARLY로 폴백).
+  const lunarRdate = lunarParsed.isLunar && lunarParsed.hasRdate;
+  const [repeat, setRepeat] = useState(rruleParsed.repeat || lunarRdate);
+  const [freq, setFreq] = useState<Freq>(
+    lunarRdate ? lunarParsed.lunarFreqHint ?? "YEARLY" : rruleParsed.freq
+  );
+  const [interval, setIntervalN] = useState(
+    lunarRdate ? lunarParsed.lunarIntervalHint : rruleParsed.interval
+  );
   const [endMode, setEndMode] = useState<EndMode>(rruleParsed.endMode);
   const [count, setCount] = useState(rruleParsed.count);
   const [until, setUntil] = useState(rruleParsed.until);
@@ -260,7 +321,7 @@ export default function EventFormModal({
       location: location.trim(),
     };
 
-    // 음력 모드: 종일 + 음력→양력 시드 + (반복에 따라) RDATE/RRULE/단발
+    // 음력 모드: 종일 + 음력→양력 시드 + (반복에 따라) RDATE(월/년)/RRULE(일/주)/단발
     if (lunar) {
       const firstSolar = lunarToSolar(lunarYear, lunarMonth, lunarDay, lunarLeap);
       if (!firstSolar) {
@@ -271,23 +332,34 @@ export default function EventFormModal({
       payload.allDay = true;
       payload.date = startKey;
       payload.endDate = startKey;
-      const mark = `[음력 ${lunarMonth}월 ${lunarDay}일${lunarLeap ? " (윤달)" : ""}]`;
+      // 매월/매년 반복이면 마커 꼬리표에 freq/interval을 저장(편집 시 복원용).
+      const useLunarRdate =
+        repeat && !rruleParsed.advanced && (freq === "MONTHLY" || freq === "YEARLY");
+      const freqTag = useLunarRdate
+        ? ` · ${freq === "MONTHLY" ? "매월" : "매년"}${interval > 1 ? `×${interval}` : ""}`
+        : "";
+      const mark = `[음력 ${lunarMonth}월 ${lunarDay}일${lunarLeap ? " (윤달)" : ""}${freqTag}]`;
       payload.description = description.trim()
         ? `${mark}\n${description.trim()}`
         : mark;
 
       if (repeat && !rruleParsed.advanced) {
-        if (freq === "YEARLY") {
-          // 매년 음력: 50년치 양력 RDATE
+        if (useLunarRdate) {
+          // 음력 기준 매월/매년: N년치 양력 RDATE
           const { rdateLine } = buildLunarRdate(
             lunarYear,
             lunarMonth,
             lunarDay,
-            lunarLeap
+            lunarLeap,
+            freq,
+            interval,
+            endMode,
+            count,
+            until
           );
           payload.recurrence = rdateLine ? [rdateLine] : [];
         } else {
-          // DAILY/WEEKLY/MONTHLY: 양력 시드 기준 일반 RRULE
+          // 일/주: 음력과 양력이 동치(24시간/7일) — 양력 RRULE 그대로
           payload.recurrence = [
             buildRrule(freq, interval, endMode, count, until, true),
           ];
@@ -463,7 +535,7 @@ export default function EventFormModal({
           )}
 
           {/* 음력 토글 */}
-          <label className="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-gray-700 py-2 cursor-pointer">
             <input
               type="checkbox"
               checked={lunar}
@@ -474,8 +546,8 @@ export default function EventFormModal({
           </label>
 
           {lunar && (
-            <div className="rounded-xl bg-gray-50 p-3 space-y-2">
-              <div className="flex gap-2 items-end">
+            <div className="rounded-xl bg-gray-50 p-3 space-y-3">
+              <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2">
                 <Field label="음력 연도">
                   <input
                     type="number"
@@ -522,20 +594,22 @@ export default function EventFormModal({
                 />
                 <span>윤달</span>
               </label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 leading-relaxed">
                 {!lunarPreview
                   ? "이 음력 날짜는 유효하지 않습니다 (그 해에 해당 윤달이 없을 수 있음)."
                   : !repeat
-                  ? `양력 ${lunarPreview} (1회)`
+                  ? `음력 ${lunarMonth}월 ${lunarDay}일 → 양력 ${lunarPreview}`
                   : freq === "YEARLY"
-                  ? `양력 ${lunarPreview}부터 향후 ${LUNAR_YEARS_AHEAD}년간 매년 음력 ${lunarMonth}월 ${lunarDay}일`
-                  : `양력 ${lunarPreview}부터 ${interval}${freqLabel(freq)}마다 반복 (양력 기준)`}
+                  ? `${interval === 1 ? "매년" : `${interval}년마다`} 음력 ${lunarMonth}월 ${lunarDay}일 (첫 양력 ${lunarPreview})`
+                  : freq === "MONTHLY"
+                  ? `${interval === 1 ? "매월" : `${interval}개월마다`} 음력 ${lunarDay}일 (첫 양력 ${lunarPreview})`
+                  : `${lunarPreview}부터 ${interval}${freqLabel(freq)}마다 반복`}
               </p>
             </div>
           )}
 
           {/* 반복 토글 */}
-          <label className="flex items-center gap-2 text-sm text-gray-700 py-1 cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-gray-700 py-2 cursor-pointer">
             <input
               type="checkbox"
               checked={repeat}
@@ -550,89 +624,83 @@ export default function EventFormModal({
           </label>
 
           {repeat && !rruleParsed.advanced && (
-            <div className="rounded-xl bg-gray-50 p-3 space-y-2">
+            <div className="rounded-xl bg-gray-50 p-3 space-y-3">
               <div className="flex items-center gap-2 text-sm">
-                {/* 음력+매년은 50년 RDATE 고정이라 간격 숨김 */}
-                {!(lunar && freq === "YEARLY") && (
-                  <input
-                    type="number"
-                    min={1}
-                    value={interval}
-                    onChange={(e) =>
-                      setIntervalN(Math.max(1, Number(e.target.value) || 1))
-                    }
-                    className={`${inputClass} w-20`}
-                  />
-                )}
+                <input
+                  type="number"
+                  min={1}
+                  value={interval}
+                  onChange={(e) =>
+                    setIntervalN(Math.max(1, Number(e.target.value) || 1))
+                  }
+                  className={`${inputClass} w-16 shrink-0 text-center`}
+                />
                 <select
                   value={freq}
                   onChange={(e) => setFreq(e.target.value as Freq)}
-                  className={`${inputClass} w-28`}
+                  className={`${inputClass} flex-1 min-w-0`}
                 >
                   <option value="DAILY">일</option>
                   <option value="WEEKLY">주</option>
                   <option value="MONTHLY">개월</option>
                   <option value="YEARLY">년</option>
                 </select>
-                <span className="text-gray-600">마다</span>
+                <span className="text-gray-600 shrink-0 whitespace-nowrap">마다</span>
               </div>
-              {/* 음력+매년은 50년 RDATE 고정이라 종료조건 숨김 */}
-              {!(lunar && freq === "YEARLY") && (
-                <div className="space-y-1.5 text-sm">
-                  <span className="block text-xs font-medium text-gray-500">종료</span>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={endMode === "never"}
-                      onChange={() => setEndMode("never")}
-                      className="accent-[var(--color-brand)]"
-                    />
-                    <span>안 함</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={endMode === "count"}
-                      onChange={() => setEndMode("count")}
-                      className="accent-[var(--color-brand)]"
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      value={count}
-                      onChange={(e) => {
-                        setCount(Math.max(1, Number(e.target.value) || 1));
-                        setEndMode("count");
-                      }}
-                      className={`${inputClass} w-20`}
-                    />
-                    <span>회</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={endMode === "until"}
-                      onChange={() => setEndMode("until")}
-                      className="accent-[var(--color-brand)]"
-                    />
-                    <input
-                      type="date"
-                      value={until}
-                      onChange={(e) => {
-                        setUntil(e.target.value);
-                        if (e.target.value) setEndMode("until");
-                      }}
-                      className={`${inputClass} w-40`}
-                    />
-                    <span>까지</span>
-                  </label>
-                </div>
-              )}
-              {lunar && freq === "YEARLY" && (
-                <p className="text-xs text-gray-500">
-                  음력 매년 반복은 향후 {LUNAR_YEARS_AHEAD}년 자동 등록입니다.
-                </p>
-              )}
+              <div className="space-y-1 text-sm">
+                <span className="block text-xs font-medium text-gray-500">종료</span>
+                <label className="flex items-center gap-2 cursor-pointer min-h-[40px] py-1">
+                  <input
+                    type="radio"
+                    checked={endMode === "never"}
+                    onChange={() => setEndMode("never")}
+                    className="accent-[var(--color-brand)] shrink-0"
+                  />
+                  <span className="whitespace-nowrap">안 함</span>
+                  {lunar && (freq === "MONTHLY" || freq === "YEARLY") && (
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                      (최대 {freq === "YEARLY" ? `${LUNAR_YEARS_AHEAD}회` : `${LUNAR_MONTHS_AHEAD}회`})
+                    </span>
+                  )}
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer min-h-[40px] py-1">
+                  <input
+                    type="radio"
+                    checked={endMode === "count"}
+                    onChange={() => setEndMode("count")}
+                    className="accent-[var(--color-brand)] shrink-0"
+                  />
+                  <input
+                    type="number"
+                    min={1}
+                    value={count}
+                    onChange={(e) => {
+                      setCount(Math.max(1, Number(e.target.value) || 1));
+                      setEndMode("count");
+                    }}
+                    className={`${inputClass} w-20 shrink-0 text-center`}
+                  />
+                  <span className="text-gray-700 shrink-0 whitespace-nowrap">회 반복</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer min-h-[40px] py-1">
+                  <input
+                    type="radio"
+                    checked={endMode === "until"}
+                    onChange={() => setEndMode("until")}
+                    className="accent-[var(--color-brand)] shrink-0"
+                  />
+                  <input
+                    type="date"
+                    value={until}
+                    onChange={(e) => {
+                      setUntil(e.target.value);
+                      if (e.target.value) setEndMode("until");
+                    }}
+                    className={`${inputClass} flex-1 min-w-0`}
+                  />
+                  <span className="text-gray-700 shrink-0 whitespace-nowrap">까지</span>
+                </label>
+              </div>
             </div>
           )}
 
