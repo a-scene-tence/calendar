@@ -6,6 +6,7 @@ import EventFormModal, {
   WritableCalendar,
 } from "@/components/EventFormModal";
 import CalendarManageModal from "@/components/CalendarManageModal";
+import { Icon } from "@/components/Icon";
 import { lunarHighlight } from "@/lib/lunar";
 
 type CalendarEvent = {
@@ -581,7 +582,7 @@ export default function CalendarMonth() {
                 setSelectedDay(null);
                 setViewDate((v) => ({ ...v, year: Number(e.target.value) }));
               }}
-              className="rounded-xl border border-transparent bg-gray-50 px-2.5 py-1 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
+              className="rounded-sm border border-transparent bg-gray-50 px-2.5 py-1 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
               aria-label="연도 선택"
             >
               {Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i).map(
@@ -598,7 +599,7 @@ export default function CalendarMonth() {
                 setSelectedDay(null);
                 setViewDate((v) => ({ ...v, month: Number(e.target.value) }));
               }}
-              className="rounded-xl border border-transparent bg-gray-50 px-2.5 py-1 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
+              className="rounded-sm border border-transparent bg-gray-50 px-2.5 py-1 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
               aria-label="월 선택"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
@@ -612,58 +613,65 @@ export default function CalendarMonth() {
             {canWrite && (
               <button
                 onClick={() => openCreate(selectedDay)}
-                className="px-2.5 py-1 mr-0.5 text-brand bg-brand-50 hover:bg-brand-100 rounded-xl text-xs font-semibold transition active:scale-95"
+                className="inline-flex items-center gap-1 px-2.5 py-1 mr-0.5 text-brand bg-brand-50 hover:bg-brand-100 rounded-lg text-xs font-semibold transition active:scale-95"
               >
-                + 일정
+                <Icon name="plus" className="h-3.5 w-3.5" />
+                일정
               </button>
             )}
             <button
               onClick={goPrev}
-              className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
+              className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-lg transition active:scale-90"
               aria-label="이전 달"
             >
-              ‹
+              <Icon name="chevron-left" className="h-4 w-4" />
             </button>
             <button
               onClick={goToday}
-              className="px-2.5 py-1 text-gray-700 hover:bg-gray-100 rounded-xl text-xs font-semibold transition active:scale-95"
+              className="px-2.5 py-1 text-gray-700 hover:bg-gray-100 rounded-lg text-xs font-semibold transition active:scale-95"
             >
               오늘
             </button>
             <button
               onClick={goNext}
-              className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-xl text-base transition active:scale-90"
+              className="h-7 w-7 flex items-center justify-center text-gray-500 hover:bg-gray-100 rounded-lg transition active:scale-90"
               aria-label="다음 달"
             >
-              ›
+              <Icon name="chevron-right" className="h-4 w-4" />
             </button>
           </div>
         </div>
 
         {/* 검색 */}
         <div className="mb-2.5 flex items-center gap-1.5">
-          <input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") runSearch(searchInput);
-            }}
-            placeholder="일정 검색 (제목·메모, 전체 기간)"
-            className="flex-1 min-w-0 rounded-xl border border-transparent bg-gray-50 px-3 py-2 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15"
-          />
+          <div className="relative flex-1 min-w-0">
+            <Icon
+              name="search"
+              className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+            />
+            <input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runSearch(searchInput);
+              }}
+              placeholder="일정 검색 (제목·메모, 전체 기간)"
+              className="w-full rounded-sm border border-transparent bg-gray-50 pl-9 pr-3 py-2 text-sm outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15"
+            />
+          </div>
           <button
             onClick={() => runSearch(searchInput)}
-            className="px-3 py-2 rounded-xl bg-brand text-white text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95"
+            className="px-3 py-2 rounded-lg bg-brand text-white text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95"
           >
             검색
           </button>
           {searchQuery && (
             <button
               onClick={clearSearch}
-              className="px-2.5 py-2 rounded-xl bg-gray-100 text-gray-500 text-sm shrink-0 transition hover:bg-gray-200 active:scale-95"
+              className="h-9 w-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 shrink-0 transition hover:bg-gray-200 active:scale-95"
               aria-label="검색 닫기"
             >
-              ✕
+              <Icon name="x" className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -673,7 +681,7 @@ export default function CalendarMonth() {
             <h3 className="text-sm font-semibold text-gray-700 mb-3">
               ‘{searchQuery}’ 검색 결과
               {searching ? "" : (
-                <span className="ml-1.5 text-brand">{searchResults.length}건</span>
+                <span className="ml-1.5 text-gray-400">{searchResults.length}건</span>
               )}
             </h3>
             {searching ? (
@@ -714,7 +722,7 @@ export default function CalendarMonth() {
                       {editable ? (
                         <button
                           onClick={() => openEdit(r)}
-                          className="w-full flex items-start gap-2 rounded-xl p-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
+                          className="w-full flex items-start gap-2 rounded-lg p-2 text-left transition hover:bg-gray-50 active:bg-gray-100"
                         >
                           {inner}
                         </button>
@@ -732,12 +740,12 @@ export default function CalendarMonth() {
         {/* 카테고리: 단일/다중 + 칩 + 관리 (한 줄 가로 스크롤) */}
         {chipCalendars.length > 0 && (
           <div className="mb-2.5 -mx-3 px-3 sm:-mx-5 sm:px-5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="inline-flex p-0.5 rounded-md bg-gray-100 text-xs shrink-0">
+            <div className="inline-flex p-0.5 rounded-sm bg-gray-100 text-xs shrink-0">
               {(["single", "multi"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => changeMode(m)}
-                  className={`px-2.5 py-0.5 rounded font-semibold transition active:scale-95 ${
+                  className={`px-2.5 py-0.5 rounded-sm font-semibold transition active:scale-95 ${
                     selectMode === m
                       ? "bg-white text-gray-900 border border-[var(--border)]"
                       : "text-gray-500"
@@ -755,7 +763,7 @@ export default function CalendarMonth() {
                 <button
                   key={cal.id}
                   onClick={() => toggleChip(cal)}
-                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition active:scale-95 ${
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-xs font-semibold border transition active:scale-95 ${
                     on
                       ? "border-transparent"
                       : "border-transparent bg-gray-100 text-gray-500"
@@ -780,8 +788,9 @@ export default function CalendarMonth() {
             })}
             <button
               onClick={() => setManageOpen(true)}
-              className="shrink-0 ml-1 px-2.5 py-1 text-gray-600 hover:bg-gray-100 rounded-full text-xs font-semibold transition active:scale-95"
+              className="shrink-0 ml-1 inline-flex items-center gap-1 px-2.5 py-1 text-gray-600 hover:bg-gray-100 rounded-lg text-xs font-semibold transition active:scale-95"
             >
+              <Icon name="settings" className="h-3.5 w-3.5" />
               관리
             </button>
           </div>
@@ -796,7 +805,7 @@ export default function CalendarMonth() {
                 i === 0
                   ? "text-red-500"
                   : i === 6
-                  ? "text-blue-500"
+                  ? "text-gray-500"
                   : "text-gray-400"
               }
             >
@@ -836,7 +845,7 @@ export default function CalendarMonth() {
                     : dow === 0 || isHolidayDay
                     ? "text-red-500"
                     : dow === 6
-                    ? "text-blue-500"
+                    ? "text-gray-500"
                     : "text-gray-700";
                   return (
                     <button
@@ -907,8 +916,8 @@ export default function CalendarMonth() {
                               color: barTextColor(item.color),
                             }}
                             className={`pointer-events-auto h-full min-w-0 px-1 text-[9px] font-semibold leading-[14px] truncate text-left transition active:opacity-80 ${
-                              roundLeft ? "rounded-l-md" : ""
-                            } ${roundRight ? "rounded-r-md" : ""}`}
+                              roundLeft ? "rounded-l-sm" : ""
+                            } ${roundRight ? "rounded-r-sm" : ""}`}
                             title={item.event.summary}
                           >
                             {label}
@@ -979,7 +988,7 @@ export default function CalendarMonth() {
                     <li key={it.event.id}>
                       <button
                         onClick={() => openEdit(it.event)}
-                        className="w-full flex items-start gap-2 rounded-xl p-1.5 text-left transition hover:bg-gray-50 active:bg-gray-100"
+                        className="w-full flex items-start gap-2 rounded-lg p-1.5 text-left transition hover:bg-gray-50 active:bg-gray-100"
                       >
                         <span className="text-[11px] font-semibold text-gray-500 mt-0.5 shrink-0 w-12">
                           {formatTime(it.event.start)}

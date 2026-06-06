@@ -552,7 +552,7 @@ export default function EventFormModal({
           </label>
 
           {lunar && (
-            <div className="rounded-xl bg-gray-50 p-3 space-y-3">
+            <div className="rounded-lg bg-gray-50 p-3 space-y-3">
               <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-2">
                 <Field label="음력 연도">
                   <input
@@ -630,7 +630,7 @@ export default function EventFormModal({
           </label>
 
           {repeat && !rruleParsed.advanced && (
-            <div className="rounded-xl bg-gray-50 p-3 space-y-3">
+            <div className="rounded-lg bg-gray-50 p-3 space-y-3">
               {/* 반복 주기: [간격][단위마다] — 각 컨트롤은 셀 안에서 전체폭 */}
               <div>
                 <span className="block text-xs font-medium text-gray-500 mb-1.5">
@@ -715,8 +715,8 @@ export default function EventFormModal({
 
           {/* 인스턴스 scope 선택 */}
           {mode === "edit" && isInstance && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-1.5 text-sm">
-              <span className="block text-xs font-medium text-amber-800">
+            <div className="rounded-lg bg-gray-50 border border-[var(--border)] p-3 space-y-1.5 text-sm">
+              <span className="block text-xs font-medium text-gray-500">
                 반복 일정 — 적용 범위
               </span>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -764,7 +764,7 @@ export default function EventFormModal({
           <button
             onClick={save}
             disabled={busy}
-            className="flex-1 rounded-xl bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+            className="flex-1 rounded-lg bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
           >
             {busy ? "저장 중..." : "저장"}
           </button>
@@ -772,7 +772,7 @@ export default function EventFormModal({
             <button
               onClick={remove}
               disabled={busy}
-              className="rounded-xl bg-red-50 text-red-500 px-4 py-3 text-sm font-semibold transition hover:bg-red-100 active:scale-[0.98] disabled:opacity-50"
+              className="rounded-lg bg-red-50 text-red-500 px-4 py-3 text-sm font-semibold transition hover:bg-red-100 active:scale-[0.98] disabled:opacity-50"
             >
               삭제
             </button>
@@ -780,7 +780,7 @@ export default function EventFormModal({
           <button
             onClick={onClose}
             disabled={busy}
-            className="rounded-xl bg-gray-100 text-gray-700 px-4 py-3 text-sm font-semibold transition hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50"
+            className="rounded-lg bg-gray-100 text-gray-700 px-4 py-3 text-sm font-semibold transition hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50"
           >
             취소
           </button>
@@ -791,7 +791,7 @@ export default function EventFormModal({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-transparent bg-gray-50 px-3.5 py-3 text-sm text-gray-900 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15";
+  "w-full rounded-sm border border-transparent bg-gray-50 px-3.5 py-3 text-sm text-gray-900 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15";
 
 function Field({
   label,

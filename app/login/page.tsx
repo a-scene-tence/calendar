@@ -73,7 +73,7 @@ export default function LoginPage() {
             <button
               onClick={signInWithGoogle}
               disabled={loading}
-              className="w-full rounded-xl bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
+              className="w-full rounded-lg bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? "이동 중..." : "Google로 계속하기"}
             </button>

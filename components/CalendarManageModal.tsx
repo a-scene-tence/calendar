@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useSwipeToDismiss } from "@/lib/useSwipeToDismiss";
+import { Icon } from "@/components/Icon";
 
 export type ManageCalendar = { id: string; name: string; color: string };
 
@@ -271,12 +272,12 @@ export default function CalendarManageModal({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="카테고리 이름"
-              className="flex-1 min-w-0 rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
+              className="flex-1 min-w-0 rounded-sm border border-transparent bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
             />
             <button
               onClick={add}
               disabled={busy}
-              className="rounded-xl bg-brand text-white px-3.5 py-2.5 text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95 disabled:opacity-50"
+              className="rounded-lg bg-brand text-white px-3.5 py-2.5 text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95 disabled:opacity-50"
             >
               추가
             </button>
@@ -298,7 +299,7 @@ export default function CalendarManageModal({
                   <input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="flex-1 min-w-0 rounded-xl border border-transparent bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
+                    className="flex-1 min-w-0 rounded-sm border border-transparent bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
                   />
                   <button
                     onClick={saveEdit}
@@ -318,7 +319,7 @@ export default function CalendarManageModal({
               ) : (
                 <li
                   key={c.id}
-                  className="flex items-center gap-1.5 p-2.5 rounded-xl transition hover:bg-gray-50"
+                  className="flex items-center gap-1.5 p-2.5 rounded-lg transition hover:bg-gray-50"
                 >
                   <span
                     className="h-3.5 w-3.5 rounded-full shrink-0"
@@ -335,7 +336,7 @@ export default function CalendarManageModal({
                       className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
                       aria-label="위로"
                     >
-                      ↑
+                      <Icon name="arrow-up" className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => moveCategory(idx, 1)}
@@ -343,7 +344,7 @@ export default function CalendarManageModal({
                       className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
                       aria-label="아래로"
                     >
-                      ↓
+                      <Icon name="arrow-down" className="h-4 w-4" />
                     </button>
                   </div>
                   <button
@@ -380,7 +381,7 @@ export default function CalendarManageModal({
               value={ioCalendarId}
               onChange={(e) => setIoCalendarId(e.target.value)}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 min-w-0 rounded-xl border border-transparent bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
+              className="flex-1 min-w-0 rounded-sm border border-transparent bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
             >
               {categories.length === 0 ? (
                 <option value="">카테고리 없음</option>
@@ -397,14 +398,14 @@ export default function CalendarManageModal({
             <button
               onClick={triggerImport}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 rounded-xl bg-white text-brand py-2.5 text-sm font-semibold border border-brand transition hover:bg-brand-50 active:scale-[0.98] disabled:opacity-50"
+              className="flex-1 rounded-lg bg-white text-brand py-2.5 text-sm font-semibold border border-brand transition hover:bg-brand-50 active:scale-[0.98] disabled:opacity-50"
             >
               가져오기
             </button>
             <button
               onClick={exportIcs}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 rounded-xl bg-brand text-white py-2.5 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
+              className="flex-1 rounded-lg bg-brand text-white py-2.5 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
             >
               내보내기
             </button>
@@ -429,7 +430,7 @@ export default function CalendarManageModal({
         <div className="mt-5">
           <button
             onClick={onClose}
-            className="w-full rounded-xl bg-gray-100 text-gray-700 py-3 text-sm font-semibold transition hover:bg-gray-200 active:scale-[0.98]"
+            className="w-full rounded-lg bg-gray-100 text-gray-700 py-3 text-sm font-semibold transition hover:bg-gray-200 active:scale-[0.98]"
           >
             닫기
           </button>
@@ -448,7 +449,7 @@ function ColorPicker({
 }) {
   return (
     <label
-      className="relative h-10 w-10 shrink-0 rounded-xl cursor-pointer ring-2 ring-white shadow-sm transition active:scale-95"
+      className="relative h-10 w-10 shrink-0 rounded-sm cursor-pointer ring-2 ring-white transition active:scale-95"
       style={{ backgroundColor: value }}
       aria-label="색상 선택"
     >
