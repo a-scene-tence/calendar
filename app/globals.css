@@ -2,10 +2,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand: #3182f6;
-  --color-brand-hover: #1b64da;
-  --color-brand-50: #e8f1fd;
-  --color-brand-100: #c9defb;
+  /* 29cm 에디토리얼: 모노크롬 + 단일 포인트(차콜). 기존 brand 유틸(bg-brand,
+     text-brand, ring-brand, accent var(--color-brand) 등)이 자동으로 차콜화된다. */
+  --color-brand: #111111;
+  --color-brand-hover: #000000;
+  --color-brand-50: #f7f7f8;
+  --color-brand-100: #f2f2f2;
+
+  /* 에디토리얼 토큰 */
+  --border: #eaeaea;
+  --muted: #8a8a8e;
 
   --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system,
     "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
@@ -22,6 +28,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.01em;
+    /* 금액·날짜 등 숫자 정렬 일관성(에디토리얼) */
+    font-variant-numeric: tabular-nums;
   }
 }
 

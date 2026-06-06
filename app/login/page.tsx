@@ -60,7 +60,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gray-50">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 p-8 text-center animate-pop">
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-[var(--border)] p-8 text-center animate-pop">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Do & Done" className="mx-auto mb-3 h-14 w-auto" />
         {checking && supabase ? (

@@ -732,14 +732,14 @@ export default function CalendarMonth() {
         {/* 카테고리: 단일/다중 + 칩 + 관리 (한 줄 가로 스크롤) */}
         {chipCalendars.length > 0 && (
           <div className="mb-2.5 -mx-3 px-3 sm:-mx-5 sm:px-5 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="inline-flex p-0.5 rounded-xl bg-gray-100 text-xs shrink-0">
+            <div className="inline-flex p-0.5 rounded-md bg-gray-100 text-xs shrink-0">
               {(["single", "multi"] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => changeMode(m)}
-                  className={`px-2.5 py-0.5 rounded-lg font-semibold transition active:scale-95 ${
+                  className={`px-2.5 py-0.5 rounded font-semibold transition active:scale-95 ${
                     selectMode === m
-                      ? "bg-white text-gray-900 shadow-sm"
+                      ? "bg-white text-gray-900 border border-[var(--border)]"
                       : "text-gray-500"
                   }`}
                   aria-pressed={selectMode === m}
@@ -755,9 +755,9 @@ export default function CalendarMonth() {
                 <button
                   key={cal.id}
                   onClick={() => toggleChip(cal)}
-                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition active:scale-95 ${
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border transition active:scale-95 ${
                     on
-                      ? "border-transparent shadow-sm"
+                      ? "border-transparent"
                       : "border-transparent bg-gray-100 text-gray-500"
                   }`}
                   style={
@@ -1041,7 +1041,7 @@ export default function CalendarMonth() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-3xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-gray-100 p-3 sm:p-5">
+    <div className="bg-white rounded-2xl border border-[var(--border)] p-3 sm:p-5">
       {children}
     </div>
   );

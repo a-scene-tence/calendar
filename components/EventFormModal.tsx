@@ -449,7 +449,7 @@ export default function EventFormModal({
       <div
         ref={sheetRef}
         style={sheetStyle}
-        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain animate-sheet"
+        className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain animate-sheet"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-300 sm:hidden" />
