@@ -59,21 +59,24 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-gray-50">
-      <div className="w-full max-w-sm bg-white rounded-2xl border border-[var(--border)] p-8 text-center animate-pop">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-[var(--paper)]">
+      <div className="w-full max-w-sm bg-[var(--surface)] rounded-none border border-[var(--border)] p-8 text-center animate-pop">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Do & Done" className="mx-auto mb-3 h-14 w-auto" />
+        <h1 className="font-display italic text-3xl text-[var(--ink)] leading-none mb-1">
+          Do &amp; Done
+        </h1>
         {checking && supabase ? (
-          <p className="text-gray-400 text-sm mt-2">확인 중...</p>
+          <p className="text-gray-400 text-sm mt-4">확인 중...</p>
         ) : supabase ? (
           <>
-            <p className="text-gray-500 text-sm mb-7">
+            <p className="text-gray-500 text-sm mt-2 mb-7">
               Google 계정으로 로그인하세요
             </p>
             <button
               onClick={signInWithGoogle}
               disabled={loading}
-              className="w-full rounded-lg bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
+              className="w-full rounded-none bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? "이동 중..." : "Google로 계속하기"}
             </button>

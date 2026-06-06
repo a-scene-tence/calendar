@@ -31,7 +31,7 @@ export default function AuthButton() {
     return (
       <a
         href="/login"
-        className="rounded-lg bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition active:scale-95"
+        className="rounded-none bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition active:scale-95"
       >
         로그인
       </a>
@@ -45,7 +45,7 @@ export default function AuthButton() {
       </span>
       <button
         onClick={signOut}
-        className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-200 active:scale-95"
+        className="rounded-none bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-200 active:scale-95"
       >
         로그아웃
       </button>
