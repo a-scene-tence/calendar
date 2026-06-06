@@ -63,7 +63,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm bg-[var(--surface)] rounded-none border border-[var(--border)] p-8 text-center animate-pop">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Do & Done" className="mx-auto mb-3 h-14 w-auto" />
-        <h1 className="font-display italic text-3xl text-[var(--ink)] leading-none mb-1">
+        <h1 className="text-2xl font-extrabold tracking-tight text-[var(--ink)] mb-1">
           Do &amp; Done
         </h1>
         {checking && supabase ? (

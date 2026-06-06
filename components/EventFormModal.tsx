@@ -453,7 +453,7 @@ export default function EventFormModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-[3px] w-10 bg-gray-300 sm:hidden" />
-        <h2 className="font-display text-2xl mb-5 text-[var(--ink)]">
+        <h2 className="text-lg font-bold mb-5 tracking-tight text-[var(--ink)]">
           {mode === "edit" ? "일정 수정" : "일정 추가"}
         </h2>
 

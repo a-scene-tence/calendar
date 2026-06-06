@@ -678,10 +678,10 @@ export default function CalendarMonth() {
 
         {searchQuery ? (
           <div className="animate-pop">
-            <h3 className="font-display text-xl text-[var(--ink)] mb-3">
+            <h3 className="text-sm font-bold text-[var(--ink)] mb-3">
               ‘{searchQuery}’ 검색 결과
               {searching ? "" : (
-                <span className="ml-1.5 font-sans text-xs font-medium text-gray-400">
+                <span className="ml-1.5 text-xs font-medium text-gray-400">
                   {searchResults.length}건
                 </span>
               )}

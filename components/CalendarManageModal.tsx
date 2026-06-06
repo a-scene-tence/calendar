@@ -261,7 +261,7 @@ export default function CalendarManageModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-[3px] w-10 bg-gray-300 sm:hidden" />
-        <h2 className="font-display text-2xl mb-5 text-[var(--ink)]">카테고리 관리</h2>
+        <h2 className="text-lg font-bold mb-5 tracking-tight text-[var(--ink)]">카테고리 관리</h2>
 
         {/* 추가 */}
         <div className="rounded-none bg-gray-50 p-3.5 mb-4">

@@ -4,7 +4,7 @@
 > 디자인 토큰·컴포넌트 스타일을 바꿀 때 본 문서를 **반드시 함께 갱신**한다.
 >
 > 관련 문서: 작업 규칙 [`CLAUDE.md`](./CLAUDE.md) · 기능 사양 [`spec.md`](./spec.md)
-> 마지막 업데이트: 2026-06-06 (세리프 디스플레이 + 페이퍼 오프화이트 + 완전 각짐)
+> 마지막 업데이트: 2026-06-06 (Pretendard 단일 + 화이트 배경 + 완전 각짐, 로고 파스텔블루)
 
 ---
 
@@ -12,7 +12,7 @@
 
 1. **페이지 + 활자**: 페이지는 옅은 중립 회색 **페이퍼(`#F5F5F4`)**, 카드/모달은 **순백
    서피스(`#FFFFFF`)**, 본문은 따뜻한 **잉크(`#1A1A1A`)**. 카드가 페이지 위로 살짝 떠 보이며,
-   활자(특히 세리프 디스플레이)가 화면의 주인공.
+   활자(Pretendard, 굵기·크기 위계)가 화면의 주인공.
 2. **모노크롬 + 단일 포인트**: 그레이 + 차콜(`--color-brand #111111`) 1포인트. 강조·버튼·활성·
    포커스·"오늘"은 차콜.
 3. **기능색은 데이터/상태에만**: 공휴일·일요일=레드, 수입/성공=그린, 경고=오렌지. UI 크롬
@@ -50,26 +50,16 @@
 
 ## 3. 타이포그래피
 
-### 폰트 토큰
+### 폰트 — Pretendard 단일
 
 | 토큰 | 값 | 용도 |
 |------|-----|------|
-| `--font-sans` | Pretendard Variable + system fallback | 본문 전반(기본) |
-| `--font-display` | Cormorant Garamond, Noto Serif KR, Pretendard 폴백 | 세리프 디스플레이(헤더·표제·로그인 카피) |
+| `--font-sans` | Pretendard Variable + system fallback | **모든 텍스트(본문·헤더·로고 워드마크 공통)** |
 
-- Latin은 **Cormorant Garamond**(이탤릭 활용), Korean은 **Noto Serif KR**로 자동 폴백.
 - 본문/숫자: Pretendard, `font-variant-numeric: tabular-nums`, `letter-spacing:-0.01em`.
-- 디스플레이 유틸: `.font-display` (globals.css base 레이어 정의 — `font-feature-settings: liga,
-  ss01`, `letter-spacing:-0.005em`).
-
-### 사용처
-
-| 위치 | 토큰 | 예 |
-|------|------|-----|
-| 검색 헤더 | `--font-display` | xl |
-| 모달 헤더(일정/카테고리) | `--font-display` | 2xl |
-| 로그인 페이지 브랜드 카피 | `--font-display` | 3xl italic |
-| 본문·날짜 숫자·일정 막대·칩 텍스트·요일 헤더·월 드롭다운·선택일 상세 | `--font-sans` | 작은 사이즈 가독성 |
+- 위계는 **굵기·크기로만** 표현(별도 디스플레이 서체 없음). 모달/검색/로그인 헤더도 Pretendard
+  굵게(`font-bold`/`font-extrabold`).
+- 세리프 디스플레이(Cormorant/Noto Serif KR)는 한글 가독성·톤 이질감으로 **롤백**(도입했다 제거).
 
 | 사이즈 위계(본문) | size | weight |
 |------|------|--------|
@@ -150,8 +140,8 @@
 ## 9. Do / Don't
 
 **Do**: 페이퍼 + 서피스 + 잉크 토큰 사용, 헤어라인 보더, 차콜 강조, tabular 숫자,
-넉넉한 여백, 굵기·세리프 디스플레이로 위계, 라인 아이콘, **완전 각짐(rounded-none)**.
+넉넉한 여백, 굵기·크기로 위계(Pretendard 단일), 라인 아이콘, **완전 각짐(rounded-none)**.
 
 **Don't**: 그라데이션, **둥근 모서리(`rounded-*` 일체, `rounded-full` 도트 포함)**, 무거운
 그림자(시트 제외), 크롬에 블루/앰버, 장식 색, 유니코드 글리프/이모지 아이콘, 컬러 타일 배경,
-**칩 배경을 카테고리색으로 채우기**, 누런/웜 톤 배경.
+**칩 배경을 카테고리색으로 채우기**, 누런/웜 톤 배경, 세리프/디스플레이 서체(Pretendard 단일 유지).
