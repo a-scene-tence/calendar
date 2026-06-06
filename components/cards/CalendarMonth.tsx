@@ -73,20 +73,6 @@ type SearchResult = {
 };
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const MONTH_NAMES_EN = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
 const MAX_LANES = 3; // 칸당 최대 막대 레인 수(초과분은 +N)
 const HOLIDAY_COLOR = "#ef4444"; // 공휴일 막대색(red-500)
 
@@ -587,15 +573,6 @@ export default function CalendarMonth() {
   return (
     <>
       <Card>
-        {/* 표제: 영문 월 + 연도 (세리프 디스플레이) */}
-        <h2
-          className="font-display italic font-normal text-4xl sm:text-5xl leading-[0.95] tracking-tight text-[var(--ink)] mb-2.5"
-          aria-hidden
-        >
-          {MONTH_NAMES_EN[viewDate.month - 1]}{" "}
-          <span className="not-italic font-light">{viewDate.year}</span>
-        </h2>
-
         {/* 헤더: 년/월 드롭다운 이동 */}
         <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
           <div className="flex items-center gap-1">
@@ -973,10 +950,7 @@ export default function CalendarMonth() {
             <p className="text-gray-400 text-xs">날짜를 탭하면 일정이 표시됩니다.</p>
           ) : (
             <div key={selectedDay} className="animate-pop">
-              <div className="flex items-center justify-between mb-1.5">
-                <h3 className="font-display text-xl text-[var(--ink)]">
-                  {formatDayHeading(selectedDay)}
-                </h3>
+              <div className="flex items-center justify-end mb-1.5">
                 {canWrite && (
                   <button
                     onClick={() => openCreate(selectedDay)}
@@ -1256,15 +1230,5 @@ function formatResultDate(start: string): string {
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
-  });
-}
-
-function formatDayHeading(key: string): string {
-  const [y, m, day] = key.split("-").map(Number);
-  const d = new Date(y, m - 1, day);
-  return d.toLocaleDateString("ko-KR", {
-    month: "long",
-    day: "numeric",
-    weekday: "short",
   });
 }
