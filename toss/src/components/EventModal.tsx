@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { CalendarEvent, Category } from '@/lib/types';
+import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 
 type Props = {
   initial: CalendarEvent;
@@ -13,18 +14,15 @@ type Props = {
 function toDateInput(iso: string): string {
   return iso.slice(0, 10);
 }
-
 function toTimeInput(iso: string): string {
-  // 'YYYY-MM-DDTHH:mm' or full ISO → 'HH:mm'
-  const t = iso.length >= 16 ? iso.slice(11, 16) : '09:00';
-  return t;
+  return iso.length >= 16 ? iso.slice(11, 16) : '09:00';
 }
-
 function combine(dateStr: string, timeStr: string): string {
   return `${dateStr}T${timeStr}`;
 }
 
 export function EventModal({ initial, isNew, categories, onSave, onDelete, onClose }: Props) {
+  const { sheetRef, sheetStyle } = useSwipeToDismiss(onClose);
   const [title, setTitle] = useState(initial.title);
   const [allDay, setAllDay] = useState(initial.allDay);
   const [startDate, setStartDate] = useState(toDateInput(initial.start));
@@ -52,8 +50,14 @@ export function EventModal({ initial, isNew, categories, onSave, onDelete, onClo
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop animate-backdrop" onClick={onClose}>
+      <div
+        ref={sheetRef}
+        style={sheetStyle}
+        className="modal animate-sheet"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-handle" />
         <h2>{isNew ? '일정 추가' : '일정 수정'}</h2>
 
         <div className="form-row">
@@ -80,12 +84,11 @@ export function EventModal({ initial, isNew, categories, onSave, onDelete, onClo
 
         <div className="form-row">
           <label>시작</label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="row-2">
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              style={{ flex: 1 }}
             />
             {!allDay && (
               <input
@@ -99,12 +102,11 @@ export function EventModal({ initial, isNew, categories, onSave, onDelete, onClo
 
         <div className="form-row">
           <label>종료</label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="row-2">
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              style={{ flex: 1 }}
             />
             {!allDay && (
               <input
@@ -119,10 +121,7 @@ export function EventModal({ initial, isNew, categories, onSave, onDelete, onClo
         {categories.length > 0 && (
           <div className="form-row">
             <label>카테고리</label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
+            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -134,11 +133,7 @@ export function EventModal({ initial, isNew, categories, onSave, onDelete, onClo
 
         <div className="form-row">
           <label>장소</label>
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
+          <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
 
         <div className="form-row">

@@ -2,11 +2,31 @@ import type { BackupPayload, CalendarEvent, Category } from './types';
 
 const EVENTS_KEY = 'ddoss:events:v1';
 const CATS_KEY = 'ddoss:categories:v1';
+const UI_KEY = 'ddoss:ui:v1';
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'personal', name: '개인', color: '#A8C8EF' },
-  { id: 'work', name: '일', color: '#111111' },
+  { id: 'todo', name: '할일', color: '#A8C8EF' },
+  { id: 'done', name: '한일', color: '#8A8A8E' },
+  { id: 'life', name: '생활', color: '#F59E0B' },
+  { id: 'exercise', name: '운동', color: '#EC4899' },
 ];
+
+export const PRESET_COLORS = [
+  '#A8C8EF',
+  '#8A8A8E',
+  '#F59E0B',
+  '#EC4899',
+  '#10B981',
+  '#8B5CF6',
+  '#14B8A6',
+  '#1A1A1A',
+];
+
+export type UiPrefs = {
+  selectMode: 'single' | 'multi';
+  visibleIds: string[];
+  categoryOrder: string[];
+};
 
 function read<T>(key: string, fallback: T): T {
   if (typeof localStorage === 'undefined') return fallback;
@@ -63,6 +83,14 @@ export function upsertCategory(cat: Category): Category {
 export function removeCategory(id: string) {
   const items = listCategories().filter((c) => c.id !== id);
   write(CATS_KEY, items);
+}
+
+export function getUiPrefs(): UiPrefs {
+  return read<UiPrefs>(UI_KEY, { selectMode: 'single', visibleIds: [], categoryOrder: [] });
+}
+
+export function setUiPrefs(prefs: UiPrefs) {
+  write(UI_KEY, prefs);
 }
 
 export function newId(): string {

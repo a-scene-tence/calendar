@@ -1,69 +1,154 @@
-import { useMemo } from 'react';
-import { WEEKDAYS, buildMonthGrid, eventsByDay, isSameDay, isSameMonth, ymd } from '@/lib/date';
-import type { CalendarEvent } from '@/lib/types';
-
-const MAX_PILLS = 3;
+import { useMemo, useRef } from 'react';
+import { WEEKDAYS, buildMonthGrid, ymd } from '@/lib/date';
+import {
+  barTextColor,
+  dateKey,
+  splitWeeks,
+  weekLayout,
+  type CalItem,
+} from '@/lib/calendar';
 
 type Props = {
   year: number;
-  month: number;
-  events: CalendarEvent[];
-  selectedKey: string;
+  month: number; // 0-11
+  items: CalItem[];
+  selectedKey: string | null;
   onSelect: (key: string) => void;
+  onEditEvent: (it: CalItem) => void;
+  onPrev: () => void;
+  onNext: () => void;
 };
 
-export function MonthGrid({ year, month, events, selectedKey, onSelect }: Props) {
-  const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
-  const byDay = useMemo(() => eventsByDay(events), [events]);
-  const today = new Date();
+export function MonthGrid({
+  year,
+  month,
+  items,
+  selectedKey,
+  onSelect,
+  onEditEvent,
+  onPrev,
+  onNext,
+}: Props) {
+  const weeks = useMemo(() => splitWeeks(buildMonthGrid(year, month)), [year, month]);
+  const todayKey = ymd(new Date());
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const s = touchStart.current;
+    touchStart.current = null;
+    if (!s) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) <= Math.abs(dy)) return;
+    if (dx < 0) onNext();
+    else onPrev();
+  }
 
   return (
-    <>
-      <div className="weekdays">
+    <div className="cal">
+      <div className="cal-weekdays">
         {WEEKDAYS.map((w, i) => (
-          <div key={w} className={i === 0 ? 'sun' : ''}>
+          <div key={w} className={i === 0 ? 'sun' : i === 6 ? 'sat' : ''}>
             {w}
           </div>
         ))}
       </div>
-      <div className="month-grid">
-        {cells.map((d) => {
-          const key = ymd(d);
-          const out = !isSameMonth(d, year, month);
-          const sun = d.getDay() === 0;
-          const isToday = isSameDay(d, today);
-          const selected = key === selectedKey;
-          const dayEvents = byDay.get(key) ?? [];
-          const visible = dayEvents.slice(0, MAX_PILLS);
-          const more = dayEvents.length - visible.length;
+
+      <div
+        key={`${year}-${month}`}
+        className="cal-grid animate-month"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        {weeks.map((days, wi) => {
+          const { lanes, overflow } = weekLayout(days, items);
+          const hasOverflow = overflow.some((n) => n > 0);
           return (
-            <button
-              key={key}
-              type="button"
-              className={[
-                'day-cell',
-                out ? 'out' : '',
-                sun ? 'sun' : '',
-                isToday ? 'today' : '',
-                selected ? 'selected' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => onSelect(key)}
-            >
-              <span className="day-num">{d.getDate()}</span>
-              <div className="pill-list">
-                {visible.map((ev) => (
-                  <span key={ev.id} className="pill" title={ev.title}>
-                    {ev.title || '(제목 없음)'}
-                  </span>
-                ))}
-                {more > 0 && <span className="more">+{more}</span>}
+            <div key={wi} className="cal-week">
+              {/* 배경: 날짜 칸 */}
+              {days.map((d) => {
+                const key = dateKey(d);
+                const inMonth = d.getMonth() === month;
+                const isToday = key === todayKey;
+                const dow = d.getDay();
+                const isHolidayDay = items.some(
+                  (it) => it.isHoliday && it.startKey <= key && key <= it.endKey
+                );
+                const numClass = !inMonth
+                  ? 'out'
+                  : dow === 0 || isHolidayDay
+                    ? 'sun'
+                    : dow === 6
+                      ? 'sat'
+                      : '';
+                return (
+                  <button key={key} className="cal-cell" onClick={() => onSelect(key)}>
+                    <span className={`cal-num ${isToday ? 'today' : numClass}`}>
+                      {d.getDate()}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {/* 선택 링 */}
+              <div className="cal-rings">
+                {days.map((d) => {
+                  const k = dateKey(d);
+                  return <div key={k} className={k === selectedKey ? 'on' : ''} />;
+                })}
               </div>
-            </button>
+
+              {/* 막대 레인 */}
+              <div className="cal-bars">
+                {lanes.map((segs, lane) => (
+                  <div key={lane} className="cal-lane">
+                    {segs.map((seg) => {
+                      const { item, colStart, span } = seg;
+                      return (
+                        <button
+                          key={item.event.id}
+                          className="cal-bar"
+                          style={{
+                            gridColumn: `${colStart + 1} / span ${span}`,
+                            backgroundColor: item.color,
+                            color: barTextColor(item.color),
+                          }}
+                          title={item.label}
+                          onClick={() =>
+                            item.isHoliday
+                              ? onSelect(item.startKey)
+                              : onEditEvent(item)
+                          }
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+                {hasOverflow && (
+                  <div className="cal-overflow">
+                    {overflow.map((n, c) =>
+                      n > 0 ? (
+                        <span key={c} style={{ gridColumn: `${c + 1}` }}>
+                          +{n}
+                        </span>
+                      ) : (
+                        <span key={c} style={{ gridColumn: `${c + 1}` }} />
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
-    </>
+    </div>
   );
 }
