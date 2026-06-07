@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#ffffff"/>
+  <g fill="#A8C8EF">
+    <!-- 상단 바인딩 탭 2개 -->
+    <rect x="186" y="128" width="24" height="56" rx="12"/>
+    <rect x="302" y="128" width="24" height="56" rx="12"/>
+    <!-- 캘린더 본체 (rounded square) -->
+    <rect x="112" y="160" width="288" height="244" rx="48"/>
+  </g>
+  <!-- 헤더 구분선 (흰 네거티브 스페이스) -->
+  <rect x="112" y="218" width="288" height="10" fill="#ffffff"/>
+  <!-- 퍼즐 이음새: 두 조각(Do | Done)을 가르는 흰 세로 갭 + 가운데 돌출 노브 -->
+  <path
+    d="M256 238 V300 a28 28 0 1 0 0 56 V404"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="14"
+    stroke-linecap="round"
+  />
+</svg>

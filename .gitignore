@@ -48,3 +48,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# apps-in-toss (toss/ 폴더 — 별도 Vite 프로젝트)
+/toss/node_modules
+/toss/dist
+/toss/.granite
+/toss/*.ait

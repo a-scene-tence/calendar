@@ -30,6 +30,9 @@ Vercel 자동 배포(git push 연동)도 병행 가능 — 도메인은 연결 �
 - **디자인 시스템**: 시각 토큰·컴포넌트 스타일은 [`design.md`](./design.md)(29cm 에디토리얼)가 단일
   출처. 디자인 변경 시 코드와 `design.md`를 **함께 갱신**.
 - **버그 발견 시**: 아래 "오류/버그 학습 로그"에 한 줄 추가하여 재발 방지.
+- **앱인토스 빌드(별도 트랙)**: 토스 미니앱 배포는 `toss/` 폴더(독립 Vite SPA, Google 미사용·
+  localStorage 전용)에서 진행. 브랜치 `claude/toss-app-in-toss`. `npx ait build`로 `.ait`
+  생성은 토스 서버(`*.toss.im`) 차단으로 **로컬 PC**에서. 절차는 `DEPLOY.md` §앱인토스 배포.
 
 ## 명령어 (스캐폴딩 후 채움)
 

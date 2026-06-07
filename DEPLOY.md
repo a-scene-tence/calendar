@@ -157,3 +157,50 @@ DB 비밀번호 분실 시 Dashboard → Project Settings → Database → reset
 - [ ] 모바일 뷰포트에서 월 그리드가 한 화면에 들어옴.
 - [ ] Google 콘솔 Production 게시 + 1회 재로그인 완료.
 - [ ] **7일 이상 경과 후에도 재로그인 없이** 캘린더가 로드됨(핵심 수용 기준).
+
+---
+
+## 8. 앱인토스 배포 (별도 트랙 · `toss/` 폴더)
+
+토스 미니앱 마켓 등록용 빌드는 메인 Next.js 앱과 **완전히 분리된 Vite SPA**로 `toss/`에 둔다.
+**Google 연동 없음 · 모든 데이터는 단말 localStorage에 저장**, 백업/복원은 JSON 파일.
+브랜치는 `claude/toss-app-in-toss`만 사용.
+
+### 8.1 아이콘 호스팅 (최초 1회)
+
+`granite.config.ts`의 `brand.icon`은 **공개된 절대 URL**이어야 한다. GitHub Pages를 권장:
+
+1. 새 repo `a-scene-tence/do-and-done` 생성(Public).
+2. `toss/public/icon-512.png`(파스텔블루 D)를 그 repo 루트에 `icon-512.png`로 업로드.
+3. Settings → Pages → Source: `main` 브랜치, `/ (root)` → 활성화.
+4. 발급된 URL `https://a-scene-tence.github.io/do-and-done/icon-512.png`가 200으로 응답하는지
+   브라우저로 확인.
+
+### 8.2 로컬 PC 빌드 절차
+
+이 웹 세션은 `*.toss.im` 호스트가 차단돼 `ait build`가 실패한다. **로컬 PC에서 실행**:
+
+```bash
+git clone -b claude/toss-app-in-toss <repo-url>
+cd <repo>/toss
+npm install                    # pnpm 사용 가능. node ≥ 20 권장
+npm run dev                    # http://localhost:5173 (모바일 뷰포트 점검)
+npm run build                  # Vite 정적 빌드(dist/) — 정합성 확인
+npx ait build                  # do-and-done.ait 생성(`.ait`는 .gitignore됨)
+```
+
+### 8.3 콘솔 업로드
+
+1. 앱인토스 개발자센터(`https://developers-apps-in-toss.toss.im`) 로그인.
+2. 앱 생성 시 `appName`을 **`do-and-done`** 으로 일치시킨다(`granite.config.ts`와 동일해야 함).
+3. 빌드 업로드에 `toss/do-and-done.ait` 파일 선택 → 심사 신청.
+4. `displayName: Do & Done`, `primaryColor: #A8C8EF`, 카테고리·스크린샷은 콘솔에서 별도 설정.
+
+### 8.4 주의
+
+- **메인 Next 앱과 분리**: `toss/`는 자체 `package.json`·`node_modules`. 루트
+  `npm run build`는 `toss/`를 건드리지 않는다.
+- **데이터 격리**: 토스 미니앱과 Vercel 웹 앱은 데이터를 공유하지 않는다(localStorage origin 분리).
+  토스 → 웹 이주가 필요해지면 백업 JSON을 export/import.
+- **버전 업데이트**: `granite.config.ts`의 `appName`·`brand`는 한번 등록 후 변경하면
+  심사 재요청 사유. icon URL이 죽지 않게 GitHub Pages를 유지할 것.
