@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MonthGrid } from '@/components/MonthGrid';
 import { DayPanel } from '@/components/DayPanel';
 import { EventModal } from '@/components/EventModal';
-import { BackupModal } from '@/components/BackupModal';
 import { CategoryManageModal } from '@/components/CategoryManageModal';
 import {
   getUiPrefs,
@@ -36,7 +35,6 @@ export default function App() {
 
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [creatingForKey, setCreatingForKey] = useState<string | null>(null);
-  const [showBackup, setShowBackup] = useState(false);
   const [showManage, setShowManage] = useState(false);
 
   const [searchInput, setSearchInput] = useState('');
@@ -193,10 +191,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Do &amp; Done</h1>
-        <button className="btn btn-ghost" onClick={() => setShowBackup(true)}>
-          백업
-        </button>
+        <img src="/logo.svg" alt="Do & Done" className="brand-logo" />
       </header>
 
       <div className="app-body">
@@ -364,10 +359,6 @@ export default function App() {
             setCreatingForKey(null);
           }}
         />
-      )}
-
-      {showBackup && (
-        <BackupModal onClose={() => setShowBackup(false)} onImported={reload} />
       )}
 
       {showManage && (

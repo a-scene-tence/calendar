@@ -8,7 +8,6 @@
   --border: #eaeaea;
   --line-strong: #d4d4d4;
   --brand: #a8c8ef;
-  --brand-soft: #eef4fc;
   --danger: #f04452;
   --holiday: #ef4444;
 
@@ -81,6 +80,11 @@ select {
   font-weight: 700;
   letter-spacing: -0.3px;
 }
+.brand-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
 
 .app-body {
   padding: 12px;
@@ -133,7 +137,7 @@ select {
   outline: none;
 }
 .picker select:focus {
-  border-color: var(--brand);
+  border-color: var(--ink);
 }
 .nav {
   display: flex;
@@ -148,7 +152,8 @@ select {
   padding: 6px 10px;
   margin-right: 2px;
   color: var(--ink);
-  background: var(--brand-soft);
+  background: var(--paper);
+  border: 1px solid var(--border);
   font-size: 12px;
   font-weight: 700;
 }
@@ -200,7 +205,7 @@ select {
   outline: none;
 }
 .search-field input:focus {
-  border-color: var(--brand);
+  border-color: var(--ink);
   background: var(--surface);
 }
 .search-btn {
@@ -618,64 +623,197 @@ select {
 }
 
 /* ── 카테고리 관리 ── */
-.cat-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.cat-section {
+  background: var(--paper);
+  padding: 12px;
+  margin-bottom: 14px;
 }
-.cat-row {
-  border: 1px solid var(--border);
-  padding: 10px;
+.cat-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 10px;
 }
-.cat-top {
+.cat-add-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.cat-name {
+.color-picker {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 2px var(--surface);
+  cursor: pointer;
+  display: block;
+}
+.color-picker input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+.cat-input {
   flex: 1;
   min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid transparent;
+  background: var(--surface);
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+}
+.cat-input:focus {
+  border-color: var(--ink);
+}
+.btn-add {
+  padding: 10px 14px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.btn-add:disabled {
+  opacity: 0.45;
+}
+
+.cat-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+}
+.cat-row-edit {
+  background: var(--paper);
+}
+.cat-color {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.cat-row .cat-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-row-edit .cat-input {
+  flex: 1;
 }
 .cat-move {
   display: flex;
-  gap: 2px;
+  gap: 0;
+  flex-shrink: 0;
 }
 .cat-move button {
-  width: 26px;
+  width: 28px;
   height: 28px;
-  border: 1px solid var(--line-strong);
-  font-size: 13px;
+  color: var(--muted);
+  font-size: 14px;
 }
 .cat-move button:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
+}
+.cat-edit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 6px 8px;
+  flex-shrink: 0;
 }
 .cat-del {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--danger);
   padding: 6px 8px;
+  flex-shrink: 0;
 }
 .cat-del:disabled {
   opacity: 0.35;
 }
-.swatches {
+.cat-save {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+.cat-cancel {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+
+.cat-io-select {
+  width: 100%;
+  margin-bottom: 8px;
+}
+.cat-io-buttons {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-  margin-top: 10px;
 }
-.swatch {
-  width: 26px;
-  height: 26px;
-  border: 2px solid transparent;
+.btn-io-secondary {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
 }
-.swatch.on {
-  border-color: var(--ink);
-  outline: 1px solid var(--surface);
-  outline-offset: -3px;
+.btn-io-primary {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+}
+.btn-io-primary:disabled,
+.btn-io-secondary:disabled {
+  opacity: 0.45;
+}
+.io-msg {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.io-msg.ok {
+  color: var(--ink);
+}
+.io-msg.error {
+  color: var(--danger);
+}
+.io-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.btn-close {
+  width: 100%;
+  padding: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 /* ── 애니메이션 ── */
