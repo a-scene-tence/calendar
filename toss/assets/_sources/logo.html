@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 600px; height: 600px; }
+    body {
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    /* icon.svg(viewBox 512) 모티프를 600px 캔버스로 스케일·정제.
+       파스텔블루 캘린더 본체 + 상단 바인딩 탭 2 + 흰 헤더 구분선
+       + "Do | Done" 흰 세로 이음새(중앙 노브) + 일정 점(차콜). */
+  </style>
+</head>
+<body>
+  <svg width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+    <rect width="600" height="600" fill="#FFFFFF"/>
+    <g fill="#A8C8EF">
+      <!-- 상단 바인딩 탭 2개 -->
+      <rect x="212" y="132" width="30" height="70" rx="15"/>
+      <rect x="358" y="132" width="30" height="70" rx="15"/>
+      <!-- 캘린더 본체 -->
+      <rect x="120" y="172" width="360" height="306" rx="60"/>
+    </g>
+    <!-- 헤더 구분선 (흰 네거티브 스페이스) -->
+    <rect x="120" y="244" width="360" height="13" fill="#FFFFFF"/>
+    <!-- "Do | Done" 흰 세로 이음새 + 중앙 돌출 노브 -->
+    <path d="M300 270 V340 a34 34 0 1 0 0 68 V478"
+          fill="none" stroke="#FFFFFF" stroke-width="17" stroke-linecap="round"/>
+    <!-- 일정 점: 좌측(Do) 2개, 우측(Done) 1개 + 체크 느낌 -->
+    <g fill="#1A1A1A">
+      <circle cx="192" cy="312" r="11"/>
+      <circle cx="192" cy="372" r="11"/>
+    </g>
+    <!-- 우측(Done) 체크 마크 -->
+    <path d="M372 342 l20 20 l40 -44" fill="none" stroke="#1A1A1A"
+          stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</body>
+</html>
