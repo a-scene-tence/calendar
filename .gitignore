@@ -48,3 +48,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 앱인토스 빌드는 별도 브랜치(claude/toss-app-in-toss)에서만 관리. 본 브랜치에선 무시.
+/toss/
