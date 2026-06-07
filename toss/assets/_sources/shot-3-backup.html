@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @font-face { font-family:'Pretendard'; src:url('file:///tmp/fonts/Pretendard-Regular.otf') format('opentype'); font-weight:400; }
+    @font-face { font-family:'Pretendard'; src:url('file:///tmp/fonts/Pretendard-SemiBold.otf') format('opentype'); font-weight:600; }
+    @font-face { font-family:'Pretendard'; src:url('file:///tmp/fonts/Pretendard-Bold.otf') format('opentype'); font-weight:700; }
+    @font-face { font-family:'Pretendard'; src:url('file:///tmp/fonts/Pretendard-ExtraBold.otf') format('opentype'); font-weight:800; }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:636px; height:1048px; }
+    body { font-family:'Pretendard', sans-serif; background:#FFFFFF; overflow:hidden; font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+    .canvas { width:636px; height:1048px; position:relative; }
+
+    .brand { position:absolute; top:60px; left:56px; display:flex; align-items:center; gap:12px; }
+    .brand .mark { width:38px; height:38px; }
+    .brand .name { font-size:25px; font-weight:700; color:#6E9BD6; letter-spacing:-0.5px; }
+
+    .head { position:absolute; top:140px; left:56px; right:56px; }
+    .title { font-size:56px; font-weight:800; color:#1A1A1A; line-height:1.18; letter-spacing:-2px; }
+    .title .hl { color:#6E9BD6; }
+    .sub { margin-top:22px; font-size:25px; font-weight:500; color:#8A8A8E; letter-spacing:-0.5px; }
+
+    .phone { position:absolute; left:50%; bottom:-130px; transform:translateX(-50%); width:512px; height:780px; background:#1A1A1A; border-radius:54px; padding:13px; box-shadow:0 30px 80px rgba(40,60,100,0.22); }
+    .notch { position:absolute; top:24px; left:50%; transform:translateX(-50%); width:120px; height:30px; background:#1A1A1A; border-radius:16px; z-index:10; }
+    .screen { width:100%; height:100%; background:#F5F5F4; border-radius:42px; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+
+    .app-header { background:#FFFFFF; border-bottom:1px solid #EAEAEA; padding:52px 22px 16px; display:flex; align-items:center; justify-content:space-between; }
+    .app-header .h1 { font-size:25px; font-weight:700; color:#1A1A1A; letter-spacing:-0.5px; }
+    .app-header .actions { display:flex; gap:8px; }
+    .app-header .btn { font-size:16px; font-weight:600; padding:9px 14px; }
+    .app-header .ghost { color:#1A1A1A; border:1px solid #D4D4D4; background:#FFFFFF; }
+    .app-header .primary { color:#FFFFFF; background:#1A1A1A; }
+
+    .month-bar { background:#FFFFFF; border-bottom:1px solid #EAEAEA; padding:14px 22px; display:flex; align-items:center; justify-content:space-between; }
+    .month-bar .label { font-size:22px; font-weight:600; color:#1A1A1A; }
+    .month-bar .nav { font-size:24px; color:#8A8A8E; }
+    .month-bar .today { font-size:15px; color:#1A1A1A; border:1px solid #D4D4D4; padding:6px 10px; }
+    .month-bar .right { display:flex; align-items:center; gap:8px; }
+
+    .weekdays { display:grid; grid-template-columns:repeat(7,1fr); background:#FFFFFF; border-bottom:1px solid #EAEAEA; }
+    .weekdays > div { text-align:center; padding:11px 0; font-size:15px; color:#8A8A8E; font-weight:500; }
+    .weekdays > div.sun { color:#F04452; }
+
+    .grid { display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows:1fr; background:#EAEAEA; gap:1px; flex:1; }
+    .cell { background:#FFFFFF; padding:8px 4px 0; display:flex; flex-direction:column; gap:4px; }
+    .num { font-size:15px; font-weight:500; color:#1A1A1A; }
+    .cell.sun .num { color:#F04452; }
+    .pill { font-size:12px; line-height:1.3; padding:2px 6px; color:#FFFFFF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .pill.blue { background:#A8C8EF; color:#1A1A1A; font-weight:600; }
+    .pill.ink { background:#1A1A1A; }
+
+    /* 백업 모달 (바텀시트) */
+    .backdrop { position:absolute; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:flex-end; z-index:50; }
+    .modal { background:#FFFFFF; width:100%; padding:24px 20px 0; }
+    .modal h2 { font-size:22px; font-weight:600; color:#1A1A1A; margin-bottom:14px; }
+    .desc { font-size:16px; line-height:1.55; color:#8A8A8E; margin-bottom:18px; }
+    .b { text-align:center; padding:15px 0; font-size:17px; font-weight:600; }
+    .primary { background:#1A1A1A; color:#FFFFFF; }
+    .outline { border:1px solid #D4D4D4; color:#1A1A1A; }
+    .hr { border:none; border-top:1px solid #EAEAEA; margin:18px 0; }
+    .row { display:flex; flex-direction:column; gap:8px; margin-bottom:15px; }
+    .row label { font-size:15px; color:#8A8A8E; font-weight:500; }
+    .field.select { padding:13px 14px; border:1px solid #D4D4D4; background:#FFFFFF; font-size:17px; color:#1A1A1A; display:flex; align-items:center; justify-content:space-between; }
+    .field.select .chev { color:#8A8A8E; font-size:15px; }
+    .okmsg { font-size:16px; color:#1A1A1A; margin:6px 0 0; }
+    .close { margin-top:20px; padding-bottom:24px; }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#A8C8EF">
+          <rect x="212" y="132" width="30" height="70" rx="15"/>
+          <rect x="358" y="132" width="30" height="70" rx="15"/>
+          <rect x="120" y="172" width="360" height="306" rx="60"/>
+        </g>
+        <rect x="120" y="244" width="360" height="13" fill="#FFFFFF"/>
+        <path d="M300 270 V340 a34 34 0 1 0 0 68 V478" fill="none" stroke="#FFFFFF" stroke-width="17" stroke-linecap="round"/>
+      </svg>
+      <span class="name">Do &amp; Done</span>
+    </div>
+
+    <div class="head">
+      <div class="title">내 일정은 <span class="hl">내 폰에만</span>,<br>백업도 직접</div>
+      <div class="sub">서버 없이 localStorage · JSON으로 백업/복원</div>
+    </div>
+
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="app-header">
+          <div class="h1">Do &amp; Done</div>
+          <div class="actions">
+            <div class="btn ghost">백업</div>
+            <div class="btn primary">추가</div>
+          </div>
+        </div>
+        <div class="month-bar">
+          <span class="nav">‹</span>
+          <span class="label">2026년 6월</span>
+          <span class="right"><span class="today">오늘</span><span class="nav">›</span></span>
+        </div>
+        <div class="weekdays">
+          <div class="sun">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+        </div>
+        <div class="grid">
+          <div class="cell sun"><span class="num">31</span></div>
+          <div class="cell"><span class="num">1</span><span class="pill ink">팀 회의</span></div>
+          <div class="cell"><span class="num">2</span></div>
+          <div class="cell"><span class="num">3</span><span class="pill blue">운동</span></div>
+          <div class="cell"><span class="num">4</span></div>
+          <div class="cell"><span class="num">5</span></div>
+          <div class="cell"><span class="num">6</span></div>
+        </div>
+
+        <div class="backdrop">
+          <div class="modal">
+            <h2>로컬 백업</h2>
+            <p class="desc">모든 일정·카테고리는 단말에만 저장됩니다. 기기 변경/초기화 전에 백업 파일을 내려받아 두세요.</p>
+            <div class="b primary">JSON으로 내보내기</div>
+            <hr class="hr">
+            <div class="row">
+              <label>가져오기 방식</label>
+              <div class="field select"><span>병합 (동일 id 덮어쓰기)</span><span class="chev">▾</span></div>
+            </div>
+            <div class="b outline">백업 파일 선택…</div>
+            <p class="okmsg">복원 완료: 일정 24개, 카테고리 2개</p>
+            <div class="b primary close">닫기</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
