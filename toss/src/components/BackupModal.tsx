@@ -18,7 +18,7 @@ export function BackupModal({ onClose, onImported }: Props) {
     const a = document.createElement('a');
     const stamp = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `do-and-done-backup-${stamp}.json`;
+    a.download = `do-done-backup-${stamp}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

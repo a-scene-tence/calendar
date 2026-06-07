@@ -10,7 +10,7 @@ cd toss
 npm install         # node ≥ 20
 npm run dev         # http://localhost:5173
 npm run build       # vite 정적 빌드 → dist/
-npx ait build       # do-and-done.ait 생성 (앱인토스 콘솔 업로드용)
+npx ait build       # do-done.ait 생성 (앱인토스 콘솔 업로드용)
 ```
 
 이 클라우드 세션에서는 `*.toss.im`이 차단돼 `ait build`가 실패한다 — 정상이며 로컬에서 빌드한다.

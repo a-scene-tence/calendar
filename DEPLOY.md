@@ -170,10 +170,10 @@ DB 비밀번호 분실 시 Dashboard → Project Settings → Database → reset
 
 `granite.config.ts`의 `brand.icon`은 **공개된 절대 URL**이어야 한다. GitHub Pages를 권장:
 
-1. 새 repo `a-scene-tence/do-and-done` 생성(Public).
+1. 새 repo `a-scene-tence/do-done` 생성(Public).
 2. `toss/public/icon-512.png`(파스텔블루 D)를 그 repo 루트에 `icon-512.png`로 업로드.
 3. Settings → Pages → Source: `main` 브랜치, `/ (root)` → 활성화.
-4. 발급된 URL `https://a-scene-tence.github.io/do-and-done/icon-512.png`가 200으로 응답하는지
+4. 발급된 URL `https://a-scene-tence.github.io/do-done/icon-512.png`가 200으로 응답하는지
    브라우저로 확인.
 
 ### 8.2 로컬 PC 빌드 절차
@@ -186,14 +186,14 @@ cd <repo>/toss
 npm install                    # pnpm 사용 가능. node ≥ 20 권장
 npm run dev                    # http://localhost:5173 (모바일 뷰포트 점검)
 npm run build                  # Vite 정적 빌드(dist/) — 정합성 확인
-npx ait build                  # do-and-done.ait 생성(`.ait`는 .gitignore됨)
+npx ait build                  # do-done.ait 생성(`.ait`는 .gitignore됨)
 ```
 
 ### 8.3 콘솔 업로드
 
 1. 앱인토스 개발자센터(`https://developers-apps-in-toss.toss.im`) 로그인.
-2. 앱 생성 시 `appName`을 **`do-and-done`** 으로 일치시킨다(`granite.config.ts`와 동일해야 함).
-3. 빌드 업로드에 `toss/do-and-done.ait` 파일 선택 → 심사 신청.
+2. 앱 생성 시 `appName`을 **`do-done`** 으로 일치시킨다(`granite.config.ts`와 동일해야 함).
+3. 빌드 업로드에 `toss/do-done.ait` 파일 선택 → 심사 신청.
 4. `displayName: Do & Done`, `primaryColor: #A8C8EF`, 카테고리·스크린샷은 콘솔에서 별도 설정.
 
 ### 8.4 주의
