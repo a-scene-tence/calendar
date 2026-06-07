@@ -277,7 +277,7 @@ export default function CalendarManageModal({
             <button
               onClick={add}
               disabled={busy}
-              className="rounded-none bg-brand text-white px-3.5 py-2.5 text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95 disabled:opacity-50"
+              className="rounded-none bg-accent text-[var(--ink)] border border-[var(--border)] px-3.5 py-2.5 text-sm font-semibold shrink-0 transition hover:bg-accent-hover active:scale-95 disabled:opacity-50"
             >
               추가
             </button>
@@ -398,14 +398,14 @@ export default function CalendarManageModal({
             <button
               onClick={triggerImport}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 rounded-none bg-white text-brand py-2.5 text-sm font-semibold border border-brand transition hover:bg-brand-50 active:scale-[0.98] disabled:opacity-50"
+              className="flex-1 rounded-none bg-white text-[var(--ink)] py-2.5 text-sm font-semibold border border-[var(--border)] transition hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
             >
               가져오기
             </button>
             <button
               onClick={exportIcs}
               disabled={ioBusy || categories.length === 0}
-              className="flex-1 rounded-none bg-brand text-white py-2.5 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50"
+              className="flex-1 rounded-none bg-accent text-[var(--ink)] border border-[var(--border)] py-2.5 text-sm font-semibold transition hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50"
             >
               내보내기
             </button>

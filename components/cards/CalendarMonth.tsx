@@ -661,7 +661,7 @@ export default function CalendarMonth() {
           </div>
           <button
             onClick={() => runSearch(searchInput)}
-            className="px-3 py-2 rounded-none bg-brand text-white text-sm font-semibold shrink-0 transition hover:bg-brand-hover active:scale-95"
+            className="px-3 py-2 rounded-none bg-accent text-[var(--ink)] border border-[var(--border)] text-sm font-semibold shrink-0 transition hover:bg-accent-hover active:scale-95"
           >
             검색
           </button>
@@ -765,10 +765,10 @@ export default function CalendarMonth() {
                 <button
                   key={cal.id}
                   onClick={() => toggleChip(cal)}
-                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold border border-transparent transition active:scale-95 ${
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold border transition active:scale-95 ${
                     on
-                      ? "bg-[var(--ink)] text-white"
-                      : "bg-gray-100 text-gray-700"
+                      ? "bg-accent text-[var(--ink)] border-[var(--border)]"
+                      : "bg-transparent text-gray-400 border-transparent"
                   }`}
                   aria-pressed={on}
                 >
@@ -851,7 +851,7 @@ export default function CalendarMonth() {
                       <span
                         className={`text-[10px] font-semibold leading-none flex items-center justify-center h-5 w-5 rounded-none transition ${
                           isToday
-                            ? "bg-brand text-white"
+                            ? "bg-accent text-[var(--ink)] border border-[var(--border)]"
                             : numberColor
                         }`}
                       >

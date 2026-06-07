@@ -31,7 +31,7 @@ export default function AuthButton() {
     return (
       <a
         href="/login"
-        className="rounded-none bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition active:scale-95"
+        className="rounded-none bg-accent text-[var(--ink)] border border-[var(--border)] px-3.5 py-1.5 text-xs font-semibold transition hover:bg-accent-hover active:scale-95"
       >
         로그인
       </a>

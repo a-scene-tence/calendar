@@ -4,9 +4,12 @@
 @theme {
   /* 29cm 에디토리얼 v2: 페이퍼 + 활자. 모노크롬 + 단일 포인트(차콜). */
   --color-brand: #111111;
-  --color-brand-hover: #000000;
   --color-brand-50: #f7f7f8;
   --color-brand-100: #f2f2f2;
+
+  /* 강조 채움: 차콜 블록 대신 밝은 회색 + 잉크 글자 + 헤어라인 */
+  --color-accent: #e8e8e8;
+  --color-accent-hover: #dedede;
 
   /* 페이지/서피스/잉크 — 옅은 중립 회색 페이지 + 순백 카드 */
   --paper: #f5f5f4;   /* 페이지 배경: 옅은 중립 회색 */

@@ -764,7 +764,7 @@ export default function EventFormModal({
           <button
             onClick={save}
             disabled={busy}
-            className="flex-1 rounded-none bg-brand text-white py-3 text-sm font-semibold transition hover:bg-brand-hover active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+            className="flex-1 rounded-none bg-accent text-[var(--ink)] border border-[var(--border)] py-3 text-sm font-semibold transition hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
           >
             {busy ? "저장 중..." : "저장"}
           </button>
