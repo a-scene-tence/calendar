@@ -516,6 +516,10 @@ select {
   color: var(--muted);
   margin-top: 2px;
 }
+.event-item .time.time-date {
+  width: 66px;
+  white-space: nowrap;
+}
 .event-item .dot {
   margin-top: 6px;
 }

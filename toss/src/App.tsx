@@ -279,7 +279,7 @@ export default function App() {
                 {searchResults.map((it) => (
                   <li key={it.event.id}>
                     <button className="event-item" onClick={() => setEditing(it.event)}>
-                      <span className="time">{it.startKey.slice(5).replace('-', '/')}</span>
+                      <span className="time time-date">{it.startKey.replace(/-/g, '/')}</span>
                       <span className="dot" style={{ background: it.color }} />
                       <span className="body">
                         <span className="title">{it.label}</span>
