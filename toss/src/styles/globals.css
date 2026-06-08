@@ -8,6 +8,8 @@
   --border: #eaeaea;
   --line-strong: #d4d4d4;
   --brand: #a8c8ef;
+  --accent: #e8e8e8;
+  --accent-hover: #dedede;
   --danger: #f04452;
   --holiday: #ef4444;
 
@@ -104,9 +106,12 @@ select {
   opacity: 0.45;
 }
 .btn-primary {
-  background: var(--ink);
-  color: var(--surface);
-  border-color: var(--ink);
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--border);
+}
+.btn-primary:active {
+  background: var(--accent-hover);
 }
 .btn-ghost {
   border-color: var(--line-strong);
@@ -210,11 +215,15 @@ select {
 }
 .search-btn {
   padding: 9px 14px;
-  background: var(--ink);
-  color: #fff;
+  background: var(--accent);
+  color: var(--ink);
+  border: 1px solid var(--border);
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
+}
+.search-btn:active {
+  background: var(--accent-hover);
 }
 .search-x {
   height: 36px;
@@ -277,12 +286,14 @@ select {
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 700;
-  background: #f0f0f0;
-  color: #555;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
 }
 .chip.on {
-  background: var(--ink);
-  color: #fff;
+  background: var(--accent);
+  color: var(--ink);
+  border-color: var(--border);
 }
 .chip .dot,
 .event-item .dot,
@@ -366,8 +377,9 @@ select {
   color: #6b7a90;
 }
 .cal-num.today {
-  background: var(--ink);
-  color: #fff;
+  background: var(--accent);
+  color: var(--ink);
+  border: 1px solid var(--border);
 }
 
 /* 선택 링 */
@@ -454,7 +466,7 @@ select {
 .day-add {
   font-size: 12px;
   font-weight: 700;
-  color: #2f6fb5;
+  color: var(--ink);
   padding: 2px 6px;
 }
 .empty {
@@ -673,11 +685,15 @@ select {
 }
 .btn-add {
   padding: 10px 14px;
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--accent);
+  color: var(--ink);
+  border: 1px solid var(--border);
   font-size: 13px;
   font-weight: 700;
   flex-shrink: 0;
+}
+.btn-add:active {
+  background: var(--accent-hover);
 }
 .btn-add:disabled {
   opacity: 0.45;
@@ -774,7 +790,7 @@ select {
   flex: 1;
   padding: 10px 12px;
   background: var(--surface);
-  border: 1px solid var(--ink);
+  border: 1px solid var(--border);
   color: var(--ink);
   font-size: 13px;
   font-weight: 700;
@@ -782,10 +798,14 @@ select {
 .btn-io-primary {
   flex: 1;
   padding: 10px 12px;
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--accent);
+  color: var(--ink);
+  border: 1px solid var(--border);
   font-size: 13px;
   font-weight: 700;
+}
+.btn-io-primary:active {
+  background: var(--accent-hover);
 }
 .btn-io-primary:disabled,
 .btn-io-secondary:disabled {
