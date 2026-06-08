@@ -698,7 +698,7 @@ export default function CalendarMonth() {
                     writableCalendars.some((c) => c.id === r.calendarId);
                   const inner = (
                     <>
-                      <span className="text-[11px] font-medium text-gray-500 shrink-0 w-24">
+                      <span className="text-[11px] font-medium text-gray-500 shrink-0 w-28">
                         {formatResultDate(r.start)}
                       </span>
                       <span
@@ -1217,6 +1217,7 @@ function formatResultDate(start: string): string {
   if (isAllDay(start)) {
     const [y, m, d] = start.split("-").map(Number);
     return new Date(y, m - 1, d).toLocaleDateString("ko-KR", {
+      year: "numeric",
       month: "numeric",
       day: "numeric",
       weekday: "short",
@@ -1225,6 +1226,7 @@ function formatResultDate(start: string): string {
   const dt = new Date(start);
   if (isNaN(dt.getTime())) return "";
   return dt.toLocaleString("ko-KR", {
+    year: "numeric",
     month: "numeric",
     day: "numeric",
     weekday: "short",
