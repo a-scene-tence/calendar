@@ -5,7 +5,7 @@ export default defineConfig({
   brand: {
     displayName: '두앤던',
     primaryColor: '#A8C8EF',
-    icon: 'https://a-scene-tence.github.io/calendar/icon-512.png',
+    icon: 'https://a-scene-tence.github.io/calendar/toss/public/icon-512.png',
   },
   web: {
     host: 'localhost',
