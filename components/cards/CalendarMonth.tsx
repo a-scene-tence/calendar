@@ -150,10 +150,11 @@ function clearPersistedOrder() {
 }
 
 export default function CalendarMonth() {
-  const today = new Date();
+  const todayKey = seoulTodayKey();
+  const [tYear, tMonth] = todayKey.split("-").map(Number);
   const [viewDate, setViewDate] = useState({
-    year: today.getFullYear(),
-    month: today.getMonth() + 1, // 1-12
+    year: tYear,
+    month: tMonth, // 1-12
   });
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [categoryOrder, setCategoryOrder] = useState<string[]>(() =>
@@ -163,7 +164,7 @@ export default function CalendarMonth() {
   const [orderSaveError, setOrderSaveError] = useState<string | null>(null);
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
   const [manageOpen, setManageOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<string | null>(dateKey(today));
+  const [selectedDay, setSelectedDay] = useState<string | null>(todayKey);
   const [status, setStatus] = useState<Status>("loading");
   const [modal, setModal] = useState<
     { mode: "create" | "edit"; initial: EventInitial } | null
@@ -468,9 +469,10 @@ export default function CalendarMonth() {
     else goPrev();
   }
   function goToday() {
-    const t = new Date();
-    setViewDate({ year: t.getFullYear(), month: t.getMonth() + 1 });
-    setSelectedDay(dateKey(t));
+    const k = seoulTodayKey();
+    const [y, m] = k.split("-").map(Number);
+    setViewDate({ year: y, month: m });
+    setSelectedDay(k);
   }
 
   function defaultCalId(): string {
@@ -550,7 +552,6 @@ export default function CalendarMonth() {
     );
   }
 
-  const todayKey = dateKey(new Date());
   // 선택일을 "포함"하는 일정(다일이면 중간 날에도 표시)
   const selectedItems = selectedDay
     ? items.filter(
@@ -585,7 +586,7 @@ export default function CalendarMonth() {
               className="rounded-none border border-transparent bg-gray-50 px-2.5 py-1 text-sm font-bold text-gray-900 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/15"
               aria-label="연도 선택"
             >
-              {Array.from({ length: 11 }, (_, i) => today.getFullYear() - 5 + i).map(
+              {Array.from({ length: 11 }, (_, i) => tYear - 5 + i).map(
                 (y) => (
                   <option key={y} value={y}>
                     {y}년
@@ -1115,6 +1116,17 @@ function pad2(n: number): string {
 
 function dateKey(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// 한국(Asia/Seoul) 기준 오늘을 "YYYY-MM-DD"로 반환 — 서버(UTC)/브라우저 무관하게 일관.
+// en-CA 로케일은 "2026-06-09" 형식을 보장한다.
+function seoulTodayKey(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 // 일정의 포함 날짜 범위(inclusive) → { startKey, endKey } 둘 다 "YYYY-MM-DD"
