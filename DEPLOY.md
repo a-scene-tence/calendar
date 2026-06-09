@@ -123,6 +123,10 @@ Production이어도 다음에는 refresh_token이 끊긴다: 사용자가 액세
    -- supabase/migrations/20260531000002_user_category_order.sql
    ALTER TABLE user_tokens
      ADD COLUMN IF NOT EXISTS category_order jsonb;
+
+   -- supabase/migrations/20260609000001_user_hidden_categories.sql
+   ALTER TABLE user_tokens
+     ADD COLUMN IF NOT EXISTS hidden_categories jsonb;
    ```
 4. **Run** (또는 ⌘/Ctrl+Enter). `IF NOT EXISTS` 덕분에 재실행해도 안전.
 5. 검증 쿼리:
@@ -132,11 +136,15 @@ Production이어도 다음에는 refresh_token이 끊긴다: 사용자가 액세
     WHERE table_name = 'user_tokens'
     ORDER BY ordinal_position;
    ```
-   `google_access_token`, `access_expires_at` 두 줄이 보이면 성공.
+   `google_access_token`, `access_expires_at`, `category_order`, `hidden_categories`가 보이면 성공.
 
 > 미적용이어도 앱은 동작한다 — `refreshGoogleToken`의 캐시 update는 try/catch로 감싸져 컬럼이 없으면
 > 조용히 건너뜀(`lib/google-token.ts`). 다만 캐시 효과가 사라져 매 요청마다 Google API에 refresh 요청이
 > 가는 비효율만 남는다.
+>
+> `hidden_categories` 미적용 시: 카테고리 숨김 토글은 이 기기(localStorage)에서는 동작하지만
+> 서버 저장(PUT `/api/user/preferences`)이 500/실패해 "숨김 저장 실패" 문구가 뜨고 기기 간
+> 동기화가 안 된다. 마이그레이션 1회 실행으로 해소.
 
 ### (참고) 향후 CLI 자동화가 필요해지면
 DB 비밀번호를 알고 있을 때만 1회 설정 — Codespaces에서도 동작:

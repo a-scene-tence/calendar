@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { refreshGoogleToken } from "@/lib/google-token";
 import { NextRequest, NextResponse } from "next/server";
 
-const EXCLUDED_NAMES = new Set(["재경본부"]);
 const HOLIDAY_NAME = "대한민국의 휴일";
 const HOLIDAY_ID_PART = "holiday@group.v.calendar.google.com";
 
@@ -98,12 +97,12 @@ export async function GET(request: NextRequest) {
     backgroundColor?: string;
     selected?: boolean;
     accessRole?: string;
-  }> = (listJson.items ?? [])
-    .filter((c: { selected?: boolean }) => c.selected !== false)
-    .filter((c: { summary?: string; summaryOverride?: string }) => {
-      const name = c.summaryOverride ?? c.summary ?? "";
-      return !EXCLUDED_NAMES.has(name); // 재경본부만 완전 제외(공휴일은 포함)
-    });
+  }> = (listJson.items ?? []).filter(
+    (c: { selected?: boolean }) => c.selected !== false
+  );
+  // 카테고리 숨김은 더 이상 서버에서 이름으로 하드코딩 제외하지 않는다.
+  // 전체 캘린더를 내려주고, 클라이언트가 hiddenCategories(사용자 설정)로 화면에서만 가린다.
+  // (관리 패널에서 숨김 토글로 제어 — 숨겨도 검색에는 계속 포함)
 
   // 검색 모드: 전 캘린더에서 q 매칭 일정을 평면 목록으로 반환
   if (q) {
@@ -238,21 +237,32 @@ export async function GET(request: NextRequest) {
     })
   );
 
-  // 사용자 지정 카테고리 순서 (컬럼 미적용 환경에서도 안전)
+  // 사용자 지정 카테고리 순서 + 숨김 목록.
+  // 두 컬럼을 독립 조회 — hidden_categories 컬럼 미적용(마이그레이션 전) 환경에서도
+  // category_order가 함께 깨지지 않게 한다.
+  const toStringArray = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
   let categoryOrder: string[] = [];
+  let hiddenCategories: string[] = [];
   try {
-    const { data: prefs } = await supabase
+    const { data } = await supabase
       .from("user_tokens")
       .select("category_order")
       .maybeSingle();
-    if (Array.isArray(prefs?.category_order)) {
-      categoryOrder = (prefs.category_order as unknown[]).filter(
-        (x): x is string => typeof x === "string"
-      );
-    }
+    categoryOrder = toStringArray(data?.category_order);
   } catch {
     // 무시 — 빈 배열
   }
+  try {
+    const { data } = await supabase
+      .from("user_tokens")
+      .select("hidden_categories")
+      .maybeSingle();
+    hiddenCategories = toStringArray(data?.hidden_categories);
+  } catch {
+    // 무시 — 빈 배열(컬럼 미적용 시)
+  }
 
-  return NextResponse.json({ calendars: grouped, categoryOrder });
+  return NextResponse.json({ calendars: grouped, categoryOrder, hiddenCategories });
 }

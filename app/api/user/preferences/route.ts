@@ -21,18 +21,33 @@ export async function PUT(request: NextRequest) {
 
   const body = (await request.json().catch(() => ({}))) as {
     categoryOrder?: unknown;
+    hiddenCategories?: unknown;
   };
-  if (!Array.isArray(body.categoryOrder)) {
-    return NextResponse.json({ error: "categoryOrder 배열 필수" }, { status: 400 });
+
+  const sanitize = (v: unknown): string[] =>
+    (Array.isArray(v) ? v : [])
+      .filter((x): x is string => typeof x === "string" && x.length <= MAX_ID_LEN)
+      .slice(0, MAX_ITEMS);
+
+  // categoryOrder / hiddenCategories 중 전달된 것만 부분 갱신.
+  const update: { category_order?: string[]; hidden_categories?: string[] } = {};
+  if (Array.isArray(body.categoryOrder)) {
+    update.category_order = sanitize(body.categoryOrder);
   }
-  const order = body.categoryOrder
-    .filter((x): x is string => typeof x === "string" && x.length <= MAX_ID_LEN)
-    .slice(0, MAX_ITEMS);
+  if (Array.isArray(body.hiddenCategories)) {
+    update.hidden_categories = sanitize(body.hiddenCategories);
+  }
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json(
+      { error: "categoryOrder 또는 hiddenCategories 배열이 필요합니다." },
+      { status: 400 }
+    );
+  }
 
   // .select()로 실제 갱신된 행을 돌려받아 0행 갱신(행 부재/RLS)을 표면화한다.
   const { data, error } = await supabase
     .from("user_tokens")
-    .update({ category_order: order })
+    .update(update)
     .eq("user_id", user.id)
     .select("user_id");
 

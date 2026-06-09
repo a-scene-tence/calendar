@@ -4,7 +4,12 @@ import { useRef, useState } from "react";
 import { useSwipeToDismiss } from "@/lib/useSwipeToDismiss";
 import { Icon } from "@/components/Icon";
 
-export type ManageCalendar = { id: string; name: string; color: string };
+export type ManageCalendar = {
+  id: string;
+  name: string;
+  color: string;
+  accessRole?: string;
+};
 
 const PRESET_COLORS = [
   "#3b82f6",
@@ -22,6 +27,9 @@ export default function CalendarManageModal({
   categoryOrder,
   onOrderChange,
   orderSaveError,
+  hiddenIds,
+  onToggleHidden,
+  hiddenSaveError,
   onClose,
   onChanged,
 }: {
@@ -29,9 +37,13 @@ export default function CalendarManageModal({
   categoryOrder: string[];
   onOrderChange: (newOrder: string[]) => void;
   orderSaveError?: string | null;
+  hiddenIds: string[];
+  onToggleHidden: (id: string) => void;
+  hiddenSaveError?: string | null;
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const hidden = new Set(hiddenIds);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
@@ -317,50 +329,82 @@ export default function CalendarManageModal({
                   </button>
                 </li>
               ) : (
-                <li
-                  key={c.id}
-                  className="flex items-center gap-1.5 p-2.5 rounded-none transition hover:bg-gray-50"
-                >
-                  <span
-                    className="h-3.5 w-3.5 rounded-none shrink-0"
-                    style={{ backgroundColor: c.color }}
-                    aria-hidden
-                  />
-                  <span className="flex-1 min-w-0 truncate text-sm font-medium text-gray-800">
-                    {c.name}
-                  </span>
-                  <div className="flex items-center shrink-0">
-                    <button
-                      onClick={() => moveCategory(idx, -1)}
-                      disabled={idx === 0}
-                      className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-none transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
-                      aria-label="위로"
+                (() => {
+                  const isHidden = hidden.has(c.id);
+                  const isOwner = c.accessRole === "owner";
+                  return (
+                    <li
+                      key={c.id}
+                      className="flex items-center gap-1.5 p-2.5 rounded-none transition hover:bg-gray-50"
                     >
-                      <Icon name="arrow-up" className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => moveCategory(idx, 1)}
-                      disabled={idx === categories.length - 1}
-                      className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-none transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
-                      aria-label="아래로"
-                    >
-                      <Icon name="arrow-down" className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => startEdit(c)}
-                    className="text-gray-500 text-xs font-medium shrink-0 px-2 py-1.5 rounded-none transition hover:bg-gray-100 active:scale-95"
-                  >
-                    수정
-                  </button>
-                  <button
-                    onClick={() => remove(c)}
-                    disabled={busy}
-                    className="text-red-500 text-xs font-medium shrink-0 px-2 py-1.5 rounded-none transition hover:bg-red-50 active:scale-95 disabled:opacity-50"
-                  >
-                    삭제
-                  </button>
-                </li>
+                      <span
+                        className={`h-3.5 w-3.5 rounded-none shrink-0 transition-opacity ${
+                          isHidden ? "opacity-30" : ""
+                        }`}
+                        style={{ backgroundColor: c.color }}
+                        aria-hidden
+                      />
+                      <span
+                        className={`flex-1 min-w-0 truncate text-sm font-medium ${
+                          isHidden ? "text-gray-400 line-through" : "text-gray-800"
+                        }`}
+                      >
+                        {c.name}
+                      </span>
+                      <button
+                        onClick={() => onToggleHidden(c.id)}
+                        className={`h-7 w-7 flex items-center justify-center rounded-none transition active:scale-90 ${
+                          isHidden
+                            ? "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                        }`}
+                        aria-label={isHidden ? "표시" : "숨기기"}
+                        aria-pressed={isHidden}
+                        title={isHidden ? "이 기기/계정에서 표시" : "화면에서 숨기기"}
+                      >
+                        <Icon
+                          name={isHidden ? "eye-off" : "eye"}
+                          className="h-4 w-4"
+                        />
+                      </button>
+                      <div className="flex items-center shrink-0">
+                        <button
+                          onClick={() => moveCategory(idx, -1)}
+                          disabled={idx === 0}
+                          className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-none transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
+                          aria-label="위로"
+                        >
+                          <Icon name="arrow-up" className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => moveCategory(idx, 1)}
+                          disabled={idx === categories.length - 1}
+                          className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-none transition active:scale-90 disabled:opacity-30 disabled:hover:bg-transparent"
+                          aria-label="아래로"
+                        >
+                          <Icon name="arrow-down" className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {isOwner && (
+                        <>
+                          <button
+                            onClick={() => startEdit(c)}
+                            className="text-gray-500 text-xs font-medium shrink-0 px-2 py-1.5 rounded-none transition hover:bg-gray-100 active:scale-95"
+                          >
+                            수정
+                          </button>
+                          <button
+                            onClick={() => remove(c)}
+                            disabled={busy}
+                            className="text-red-500 text-xs font-medium shrink-0 px-2 py-1.5 rounded-none transition hover:bg-red-50 active:scale-95 disabled:opacity-50"
+                          >
+                            삭제
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  );
+                })()
               )
             )}
           </ul>
@@ -369,6 +413,9 @@ export default function CalendarManageModal({
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
         {orderSaveError && (
           <p className="text-red-500 text-sm mt-3">순서 저장 실패: {orderSaveError}</p>
+        )}
+        {hiddenSaveError && (
+          <p className="text-red-500 text-sm mt-3">숨김 저장 실패: {hiddenSaveError}</p>
         )}
 
         {/* 가져오기 / 내보내기 */}

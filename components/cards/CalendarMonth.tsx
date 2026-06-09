@@ -149,6 +149,40 @@ function clearPersistedOrder() {
   }
 }
 
+// 숨긴 카테고리(캘린더 ID) 목록도 영속화 → 재시작 시 깜빡임 없이 숨김 유지.
+// 서버(user_tokens.hidden_categories)가 단일 출처이고 localStorage는 즉시 하이드레이션용 캐시.
+const HIDDEN_CACHE_KEY = "calendarHiddenCategories:v1";
+
+function readPersistedHidden(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_CACHE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePersistedHidden(ids: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(HIDDEN_CACHE_KEY, JSON.stringify(ids));
+  } catch {
+    /* noop */
+  }
+}
+
+function clearPersistedHidden() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(HIDDEN_CACHE_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 export default function CalendarMonth() {
   const todayKey = seoulTodayKey();
   const [tYear, tMonth] = todayKey.split("-").map(Number);
@@ -163,6 +197,11 @@ export default function CalendarMonth() {
   const [selectMode, setSelectMode] = useState<"single" | "multi">("single");
   const [orderSaveError, setOrderSaveError] = useState<string | null>(null);
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  // 숨긴 카테고리(캘린더 ID). 화면(칩·그리드)에서만 가리고 검색에는 계속 포함.
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(
+    () => new Set(readPersistedHidden())
+  );
+  const [hiddenSaveError, setHiddenSaveError] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(todayKey);
   const [status, setStatus] = useState<Status>("loading");
@@ -233,6 +272,10 @@ export default function CalendarMonth() {
           setCategoryOrder(data.categoryOrder);
           writePersistedOrder(data.categoryOrder);
         }
+        if (opts.withOrder && Array.isArray(data.hiddenCategories)) {
+          setHiddenCategories(new Set(data.hiddenCategories as string[]));
+          writePersistedHidden(data.hiddenCategories as string[]);
+        }
         const vd = viewDateRef.current;
         if (vd.year === year && vd.month === month) {
           setCalendars(cals);
@@ -261,6 +304,7 @@ export default function CalendarMonth() {
         if (res.unauthorized) {
           clearPersistedCache();
           clearPersistedOrder();
+          clearPersistedHidden();
           setStatus("unauthorized");
         }
         return;
@@ -270,6 +314,7 @@ export default function CalendarMonth() {
       if (res.unauthorized) {
         clearPersistedCache();
         clearPersistedOrder();
+        clearPersistedHidden();
         setStatus("unauthorized");
         return;
       }
@@ -320,39 +365,48 @@ export default function CalendarMonth() {
     [categoryCalendars]
   );
 
-  // 칩: 카테고리만(공휴일은 토글 없이 항상 표시)
-  const chipCalendars = categoryCalendars;
+  // 숨기지 않은 카테고리(화면 표시 대상). 숨김은 화면에서만 가림 — 검색에는 계속 포함.
+  const shownCategories = useMemo(
+    () => categoryCalendars.filter((c) => !hiddenCategories.has(c.id)),
+    [categoryCalendars, hiddenCategories]
+  );
 
-  // 관리 가능한(소유) 카테고리
-  const ownerCategories = useMemo(
+  // 칩: 숨기지 않은 카테고리만(공휴일은 토글 없이 항상 표시)
+  const chipCalendars = shownCategories;
+
+  // 관리 패널에 넘길 전체 카테고리(숨김 토글용). accessRole로 수정/삭제 가능 여부 구분.
+  const manageCategories = useMemo(
     () =>
-      categoryCalendars
-        .filter((c) => c.accessRole === "owner")
-        .map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      categoryCalendars.map((c) => ({
+        id: c.id,
+        name: c.name,
+        color: c.color,
+        accessRole: c.accessRole,
+      })),
     [categoryCalendars]
   );
 
-  // visibleIds(카테고리만) 유효성 보장 + 최초 기본값(첫 카테고리)
+  // visibleIds(카테고리만) 유효성 보장 + 최초 기본값(숨기지 않은 첫 카테고리)
   useEffect(() => {
-    if (categoryCalendars.length === 0) return;
+    if (shownCategories.length === 0) return;
     setVisibleIds((prev) => {
       const valid = new Set(
-        [...prev].filter((id) => categoryCalendars.some((c) => c.id === id))
+        [...prev].filter((id) => shownCategories.some((c) => c.id === id))
       );
-      if (valid.size === 0 && categoryCalendars[0]) {
-        valid.add(categoryCalendars[0].id);
+      if (valid.size === 0 && shownCategories[0]) {
+        valid.add(shownCategories[0].id);
       }
       return valid;
     });
-  }, [categoryCalendars]);
+  }, [shownCategories]);
 
-  // 보이는 카테고리 + 모든 공휴일(공휴일은 항상 표시)
+  // 보이는 카테고리 + 모든 공휴일(공휴일은 항상 표시). 숨긴 카테고리는 제외.
   const visibleCalendars = useMemo(
     () => [
-      ...categoryCalendars.filter((c) => visibleIds.has(c.id)),
+      ...shownCategories.filter((c) => visibleIds.has(c.id)),
       ...holidayCalendars,
     ],
-    [categoryCalendars, holidayCalendars, visibleIds]
+    [shownCategories, holidayCalendars, visibleIds]
   );
 
   // 보이는 모든 캘린더의 일정을 통합해 전역 레인 배정(주 경계 넘어도 같은 레인 유지)
@@ -392,7 +446,7 @@ export default function CalendarMonth() {
     setVisibleIds((prev) => {
       const next = new Set(prev);
       if (selectMode === "single") {
-        for (const c of categoryCalendars) next.delete(c.id);
+        for (const c of shownCategories) next.delete(c.id);
         next.add(cal.id);
       } else if (next.has(cal.id)) {
         next.delete(cal.id);
@@ -407,11 +461,39 @@ export default function CalendarMonth() {
     if (mode === "single") {
       setVisibleIds((prev) => {
         const next = new Set(prev);
-        const visCats = categoryCalendars.filter((c) => next.has(c.id));
+        const visCats = shownCategories.filter((c) => next.has(c.id));
         for (const c of visCats.slice(1)) next.delete(c.id);
         return next;
       });
     }
+  }
+
+  // 카테고리 숨김/표시 토글(낙관적: 즉시 화면 반영 + 서버 저장). 숨김은 화면에서만 가림.
+  function toggleHidden(calId: string) {
+    setHiddenSaveError(null);
+    setHiddenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(calId)) next.delete(calId);
+      else next.add(calId);
+      const ids = [...next];
+      writePersistedHidden(ids);
+      void (async () => {
+        try {
+          const res = await fetch("/api/user/preferences", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hiddenCategories: ids }),
+          });
+          if (!res.ok) {
+            const j = (await res.json().catch(() => ({}))) as { error?: string };
+            setHiddenSaveError(j.error ?? `숨김 저장 실패 (${res.status})`);
+          }
+        } catch {
+          setHiddenSaveError("숨김 저장 실패 (네트워크 오류)");
+        }
+      })();
+      return next;
+    });
   }
 
   // 사용자 지정 카테고리 순서 갱신(낙관적: 즉시 반영 + 디바운스 백그라운드 저장)
@@ -1025,10 +1107,13 @@ export default function CalendarMonth() {
 
       {manageOpen && (
         <CalendarManageModal
-          categories={ownerCategories}
+          categories={manageCategories}
           categoryOrder={categoryOrder}
           onOrderChange={handleOrderChange}
           orderSaveError={orderSaveError}
+          hiddenIds={[...hiddenCategories]}
+          onToggleHidden={toggleHidden}
+          hiddenSaveError={hiddenSaveError}
           onClose={() => setManageOpen(false)}
           onChanged={() => {
             monthCache.current.clear();
