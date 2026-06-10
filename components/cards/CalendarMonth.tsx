@@ -184,7 +184,9 @@ function clearPersistedHidden() {
 }
 
 export default function CalendarMonth() {
-  const todayKey = seoulTodayKey();
+  // "오늘"을 state로 보관 — 낡은 SSR/SW 캐시가 와도 마운트 직후 실제 오늘로 보정.
+  // 자정 롤오버나 백그라운드 탭 복귀 시 visibilitychange/focus로 갱신.
+  const [todayKey, setTodayKey] = useState(seoulTodayKey);
   const [tYear, tMonth] = todayKey.split("-").map(Number);
   const [viewDate, setViewDate] = useState({
     year: tYear,
@@ -326,6 +328,19 @@ export default function CalendarMonth() {
     },
     [fetchMonth, flushOrderSave]
   );
+
+  // "오늘" 키를 마운트·가시성 복귀·포커스 시 KST 기준으로 재계산.
+  // 마운트 1회 호출로 낡은 SSR/SW 캐시의 값을 즉시 보정. viewDate는 건드리지 않아 보기 자동 점프 없음.
+  useEffect(() => {
+    const sync = () => setTodayKey(seoulTodayKey());
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("focus", sync);
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("focus", sync);
+    };
+  }, []);
 
   const didInitRef = useRef(false);
   useEffect(() => {
