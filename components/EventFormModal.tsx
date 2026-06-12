@@ -449,15 +449,16 @@ export default function EventFormModal({
       <div
         ref={sheetRef}
         style={sheetStyle}
-        className="w-full sm:max-w-md bg-[var(--surface)] rounded-none shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] p-5 sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain animate-sheet"
+        className="w-full sm:max-w-md bg-[var(--surface)] rounded-none shadow-[0_-8px_32px_rgba(0,0,0,0.08)] sm:shadow-[0_8px_40px_rgba(0,0,0,0.12)] max-h-[90vh] flex flex-col animate-sheet"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-3 h-[3px] w-10 bg-gray-300 sm:hidden" />
-        <h2 className="text-lg font-bold mb-5 tracking-tight text-[var(--ink)]">
+        <div className="mx-auto mt-3 mb-2 h-[3px] w-10 bg-gray-300 sm:hidden shrink-0" />
+        <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pt-1 sm:pt-5 pb-4">
+        <h2 className="text-lg font-bold mb-4 tracking-tight text-[var(--ink)]">
           {mode === "edit" ? "일정 수정" : "일정 추가"}
         </h2>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <Field label="제목">
             <input
               value={summary}
@@ -757,33 +758,35 @@ export default function EventFormModal({
             />
           </Field>
         </div>
+        </div>
 
-        {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
-
-        <div className="flex items-center gap-2 mt-6">
-          <button
-            onClick={save}
-            disabled={busy}
-            className="flex-1 rounded-none bg-accent text-[var(--ink)] border border-[var(--border)] py-3 text-sm font-semibold transition hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
-          >
-            {busy ? "저장 중..." : "저장"}
-          </button>
-          {mode === "edit" && (
+        <div className="shrink-0 border-t border-[var(--border)] px-5 sm:px-6 py-3">
+          {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+          <div className="flex items-center gap-2">
             <button
-              onClick={remove}
+              onClick={save}
               disabled={busy}
-              className="rounded-none bg-red-50 text-red-500 px-4 py-3 text-sm font-semibold transition hover:bg-red-100 active:scale-[0.98] disabled:opacity-50"
+              className="flex-1 rounded-none bg-accent text-[var(--ink)] border border-[var(--border)] py-3 text-sm font-semibold transition hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
             >
-              삭제
+              {busy ? "저장 중..." : "저장"}
             </button>
-          )}
-          <button
-            onClick={onClose}
-            disabled={busy}
-            className="rounded-none bg-gray-100 text-gray-700 px-4 py-3 text-sm font-semibold transition hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50"
-          >
-            취소
-          </button>
+            {mode === "edit" && (
+              <button
+                onClick={remove}
+                disabled={busy}
+                className="rounded-none bg-red-50 text-red-500 px-4 py-3 text-sm font-semibold transition hover:bg-red-100 active:scale-[0.98] disabled:opacity-50"
+              >
+                삭제
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              disabled={busy}
+              className="rounded-none bg-gray-100 text-gray-700 px-4 py-3 text-sm font-semibold transition hover:bg-gray-200 active:scale-[0.98] disabled:opacity-50"
+            >
+              취소
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -791,7 +794,7 @@ export default function EventFormModal({
 }
 
 const inputClass =
-  "w-full rounded-none border border-transparent bg-gray-50 px-3.5 py-3 text-sm text-gray-900 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15";
+  "w-full rounded-none border border-transparent bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/15";
 
 function Field({
   label,
@@ -802,7 +805,7 @@ function Field({
 }) {
   return (
     <label className="block flex-1">
-      <span className="block text-xs font-medium text-gray-500 mb-1.5">{label}</span>
+      <span className="block text-xs font-medium text-gray-500 mb-1">{label}</span>
       {children}
     </label>
   );
